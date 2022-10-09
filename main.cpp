@@ -228,8 +228,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 int main(void) {
-    i64 curr = tnow(); //
-    i64 prev = curr;   // time
     R.w = 1024; R.h = 1024;
     R.vsync = true;
     R.init();
