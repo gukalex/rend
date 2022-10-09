@@ -1,18 +1,34 @@
 // todo:
-// - vsync
+// - fonts
+// - imgui
+// - demoes
+// - shaders
 
 #include <stdio.h>
 
-#include "glad/glad.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <memory.h>
+// oh my
+#include <chrono>
+#include <thread>
 
 float RN() { return rand() / (float)RAND_MAX; }
 
 using u8 = unsigned char;
 using u32 = unsigned int;
 using i32 = int;
+using i64 = long long int;
+
+i64 tnow() { // nanoseconds since epoch
+    return std::chrono::high_resolution_clock::now().time_since_epoch().count();
+}
+void tsleep(i64 nano) {
+    std::this_thread::sleep_for(std::chrono::nanoseconds(nano));
+}
+float sec(i64 nanodiff) { return (float)(nanodiff / 1'000'000'000.0); }
+i64 nano(float sec) { return (i64)(sec * 1'000'000'000.0); }
 
 struct v4 {float x,y,z,w;};
 struct v2 {float x,y;};
@@ -27,7 +43,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 struct rend {
     int w,h;
+    bool vsync; // init only
     GLFWwindow* window;
+    i64 curr_time; // time, nanosec
+    i64 prev_time;
+    float fd = 1/60.0f; // current frame delta
         
     const char* vs_quad = R"(
         #version 450 core
@@ -59,6 +79,7 @@ struct rend {
     u32 curr_quad_count = 0;
 
     void init() {
+        curr_time = prev_time = tnow();
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -66,7 +87,8 @@ struct rend {
         window = glfwCreateWindow(w, h, "rend", NULL, NULL);
         glfwMakeContextCurrent(window);
         gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-        //glfwSwapInterval(1); vsync
+        if (vsync)
+            glfwSwapInterval(1);
         glViewport(0, 0, w, h);
         glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -142,20 +164,25 @@ struct rend {
         glfwTerminate();
     }
     void present() { // todo: separate quad drawing into different function
-        // upload quad vertex data
-        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
-        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, curr_quad_count * sizeof(u32) * 6, quad_indices);
-        // draw quads
-        glUseProgram(prog_quad);
-        glBindVertexArray(vb_quad);
-        glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
-        curr_quad_count = 0;
+        if (curr_quad_count) {
+            // upload quad vertex data
+            glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
+            glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, curr_quad_count * sizeof(u32) * 6, quad_indices);
+            // draw quads
+            glUseProgram(prog_quad);
+            glBindVertexArray(vb_quad);
+            glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
+            curr_quad_count = 0;
+        }
 
         glfwSwapBuffers(window);
+        prev_time = curr_time;
+        curr_time = tnow();
+        fd = sec(curr_time - prev_time);
     }
     bool closed() {
         glfwPollEvents();
@@ -192,7 +219,7 @@ struct rend {
     }
 };
 
-rend R {1024, 1024};
+rend R;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     R.w = width;
@@ -201,26 +228,30 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 int main(void) {
+    i64 curr = tnow(); //
+    i64 prev = curr;   // time
+    R.w = 1024; R.h = 1024;
+    R.vsync = true;
     R.init();
-    constexpr u32 Q_COUNT = 500000;
+    constexpr u32 Q_COUNT = 50000;
     struct quad { v2 lb, size; v4 c; };
     quad* q = (quad*)malloc(sizeof(quad) * Q_COUNT);
     for (int i = 0; i != Q_COUNT; i++) {
         q[i].lb.x = RN();
         q[i].lb.y = RN();
-        q[i].size = {0.001, 0.001};
+        q[i].size = {0.01f, 0.01f};
         q[i].c = {RN(), RN(), RN(), 0};
     }
-    float offset = 0.0;
     while (!R.closed()) {
+        float offset = 0.1f * R.fd;
         v4 cc = {1, 1, 0, 0};
         R.clear(cc);
-        offset += 0.00000001; // todo: frame delta 
         for (int i = 0; i != Q_COUNT; i++) {
             q[i].lb.x += offset;
             R.quad(q[i].lb, q[i].lb + q[i].size, q[i].c);
         }
         R.present();
+        printf("%f ms\n", R.fd * 1000.f);
     }
 
     free(q);
