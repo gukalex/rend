@@ -14,6 +14,10 @@
 #include <chrono>
 #include <thread>
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 float RN() { return rand() / (float)RAND_MAX; }
 
 using u8 = unsigned char;
@@ -92,6 +96,34 @@ struct rend {
         glViewport(0, 0, w, h);
         glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+        // Setup Dear ImGui context
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+        //io.ConfigViewportsNoAutoMerge = true;
+        //io.ConfigViewportsNoTaskBarIcon = true;
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsLight();
+
+        // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+        ImGuiStyle& style = ImGui::GetStyle();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            style.WindowRounding = 0.0f;
+            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        }
+
+        // Setup Platform/Renderer backends
+        const char* glsl_version = "#version 330 core";
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
+        ImGui_ImplOpenGL3_Init(glsl_version);
+
         quad_pos = (float*)malloc(max_quads * sizeof(float) * 2 * 4);
         quad_attr1 = (float*)malloc(max_quads * sizeof(float) * 4 * 4);
         quad_indices = (u32*)malloc(max_quads * sizeof(u32) * 6);
@@ -155,11 +187,19 @@ struct rend {
     };
     void cleanup() {
         // dont care rn
+        glDeleteVertexArrays(1, &vb_quad);
+        glDeleteProgram(prog_quad);
+        u32 buffers[] = {sb_quad_pos, sb_quad_attr1, sb_quad_indices};
+        glDeleteBuffers(3, buffers);
 
         // quad resources
         free(quad_pos);
         free(quad_attr1);
         free(quad_indices);
+
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
 
         glfwTerminate();
     }
@@ -178,6 +218,16 @@ struct rend {
             glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
             curr_quad_count = 0;
         }
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
 
         glfwSwapBuffers(window);
         prev_time = curr_time;
@@ -186,6 +236,13 @@ struct rend {
     }
     bool closed() {
         glfwPollEvents();
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::GetIO().FontGlobalScale = 2.0f;
+
         return glfwWindowShouldClose(window);
     }
     void clear(v4 c) {
@@ -229,7 +286,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 int main(void) {
     R.w = 1024; R.h = 1024;
-    R.vsync = true;
+    R.vsync = false;
     R.init();
     constexpr u32 Q_COUNT = 50000;
     struct quad { v2 lb, size; v4 c; };
@@ -240,7 +297,10 @@ int main(void) {
         q[i].size = {0.01f, 0.01f};
         q[i].c = {RN(), RN(), RN(), 0};
     }
+    bool show_demo_window = true;
     while (!R.closed()) {
+        ImGui::Text("FPS: %f, timeframe: %f", 1 / R.fd, R.fd*1000);
+
         float offset = 0.1f * R.fd;
         v4 cc = {1, 1, 0, 0};
         R.clear(cc);
@@ -248,8 +308,12 @@ int main(void) {
             q[i].lb.x += offset;
             R.quad(q[i].lb, q[i].lb + q[i].size, q[i].c);
         }
+
+        if (show_demo_window)
+            ImGui::ShowDemoWindow(&show_demo_window);
+
         R.present();
-        printf("%f ms\n", R.fd * 1000.f);
+        //printf("%f ms\n", R.fd * 1000.f);
     }
 
     free(q);
