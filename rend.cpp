@@ -28,6 +28,8 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+#include "stb_image.h"
+
 float RN() { return rand() / (float)RAND_MAX; }
 float RNC(f32 b) { return b + RN() * (1.f - 2.f * b); }
 
@@ -38,9 +40,52 @@ void tsleep(i64 nano) {
     std::this_thread::sleep_for(std::chrono::nanoseconds(nano));
 }
 
+void GLAPIENTRY gl_errors(GLenum source,GLenum type,GLuint id,GLenum severity,GLsizei length,
+    const GLchar* message, const void* userParam) {
+    printf("GL %s t(0x%x), s(0x%x): %s\n", (type == GL_DEBUG_TYPE_ERROR ? " ERROR" : ""),
+        type, severity, message);
+}
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
+u32 rend::shader(const char* vs, const char* fs) {
+    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vs, NULL);
+    glCompileShader(vertexShader);
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        printf("vertex: %s\n", infoLog);
+    }
+    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fs, NULL);
+    glCompileShader(fragmentShader);
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        printf("fragment: %s\n", infoLog);
+    }
+    u32 prog = glCreateProgram();
+    glAttachShader(prog, vertexShader);
+    glAttachShader(prog, fragmentShader);
+    glLinkProgram(prog);
+    glGetProgramiv(prog, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(prog, 512, NULL, infoLog);
+        printf("shader link: %s", infoLog);
+    }
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    return prog;
+}
+
 void rend::init() {
+    stbi_set_flip_vertically_on_load(true);
     curr_time = prev_time = tnow();
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -54,6 +99,11 @@ void rend::init() {
     glViewport(0, 0, w, h);
     glfwSetWindowUserPointer(window, (void*)this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(gl_errors, 0);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -83,41 +133,14 @@ void rend::init() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    progs = (u32*)malloc(max_progs * sizeof(u32));
+    textures = (u32*)malloc(max_textures * sizeof(u32));
     quad_pos = (float*)malloc(max_quads * sizeof(float) * 2 * 4);
     quad_attr1 = (float*)malloc(max_quads * sizeof(float) * 4 * 4);
     quad_indices = (u32*)malloc(max_quads * sizeof(u32) * 6);
 
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vs_quad, NULL);
-    glCompileShader(vertexShader);
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        printf("vertex: %s\n", infoLog);
-    }
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fs_quad, NULL);
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        printf("fragment: %s\n", infoLog);
-    }
-    prog_quad = glCreateProgram();
-    glAttachShader(prog_quad, vertexShader);
-    glAttachShader(prog_quad, fragmentShader);
-    glLinkProgram(prog_quad);
-    glGetProgramiv(prog_quad, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(prog_quad, 512, NULL, infoLog);
-        printf("shader link: %s", infoLog);
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    progs[curr_progs++] = shader(vs_quad, fs_quad);
+    default_quad_data = { progs[0],0 };
 
     glGenVertexArrays(1, &vb_quad);
     glGenBuffers(1, &sb_quad_pos);
@@ -145,11 +168,13 @@ void rend::init() {
 
 }
 void rend::cleanup() {
-    // dont care rn
     glDeleteVertexArrays(1, &vb_quad);
-    glDeleteProgram(prog_quad);
     u32 buffers[] = { sb_quad_pos, sb_quad_attr1, sb_quad_indices };
     glDeleteBuffers(3, buffers);
+    for (int i = 0; i < curr_progs; i++)
+        glDeleteProgram(progs[i]);
+
+    glDeleteTextures(curr_tex, textures);
 
     // quad resources
     free(quad_pos);
@@ -162,7 +187,27 @@ void rend::cleanup() {
 
     glfwTerminate();
 }
-void rend::present() { // todo: separate quad drawing into different function
+
+u32 rend::texture(const char* filename) {
+    int w, h, ch;
+    unsigned char* data = stbi_load(filename, &w, &h, &ch, 0);
+    return texture(data, w, h, ch);
+    stbi_image_free(data);
+}
+
+u32 rend::texture(u8* data, int w, int h, int channel_count) {
+    u32 tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    u32 formats[] = {GL_RED, GL_RG, GL_RGB, GL_RGBA};
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, formats[channel_count - 1], GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    return tex;
+}
+
+void rend::submit(draw_data data) {
     if (curr_quad_count) {
         // upload quad vertex data
         glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
@@ -172,11 +217,21 @@ void rend::present() { // todo: separate quad drawing into different function
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
         glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, curr_quad_count * sizeof(u32) * 6, quad_indices);
         // draw quads
-        glUseProgram(prog_quad);
+        glUseProgram(data.prog);
+        if (data.tex) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, data.tex);
+            u32 loc = glGetUniformLocation(data.prog, "rend_t0"); // todo: when creating shader
+            glUniform1i(loc, 0);
+        }
         glBindVertexArray(vb_quad);
         glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
         curr_quad_count = 0;
     }
+}
+
+void rend::present() { // todo: separate quad drawing into different function
+    submit(default_quad_data);
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -208,21 +263,22 @@ void rend::clear(v4 c) {
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(c.x, c.y, c.z, c.w);
 }
-void rend::quad(v2 lb, v2 rt, v4 c) { // 0-1
+
+void rend::quad_a(v2 lb, v2 rt, v4 attr[4]) {
     u32 curr_index = curr_quad_count * 4;
     v2 lb_ndc = (lb * 2.0f) - 1.0f;
     v2 rt_ndc = (rt * 2.0f) - 1.0f;
     float vertices[] = {
-            rt_ndc.x,  rt_ndc.y,  // top right
+            rt_ndc.x,  rt_ndc.y, // top right
             rt_ndc.x, lb_ndc.y,  // bottom right
             lb_ndc.x, lb_ndc.y,  // bottom left
-            lb_ndc.x,  rt_ndc.y// top left 
+            lb_ndc.x,  rt_ndc.y  // top left 
     };
     float colors[] = {
-            c.x, c.y, c.z, c.w, // !WASTEFUL SHAME!
-            c.x, c.y, c.z, c.w,
-            c.x, c.y, c.z, c.w,
-            c.x, c.y, c.z, c.w,
+            attr[0].x, attr[0].y, attr[0].z, attr[0].w,
+            attr[1].x, attr[1].y, attr[1].z, attr[1].w,
+            attr[2].x, attr[2].y, attr[2].z, attr[2].w,
+            attr[3].x, attr[3].y, attr[3].z, attr[3].w,
     };
     unsigned int indices[] = {
         0 + curr_index, 1 + curr_index, 3 + curr_index,
@@ -232,6 +288,18 @@ void rend::quad(v2 lb, v2 rt, v4 c) { // 0-1
     memcpy((u8*)quad_attr1 + curr_quad_count * sizeof(float) * 4 * 4, colors, sizeof(colors));
     memcpy((u8*)quad_indices + curr_quad_count * sizeof(u32) * 6, indices, sizeof(indices));
     curr_quad_count++; // todo: assert max quad
+}
+void rend::quad(v2 lb, v2 rt, v4 c) { // 0-1
+    v4 attr[4] = { c, c, c, c };
+    quad_a(lb, rt, attr);
+}
+
+void rend::quad_t(v2 lb, v2 rt, v2 attr) {
+    v4 base_attr[4] = { {1, 1, attr.x, attr.y},
+                        {1, 0, attr.x, attr.y}, 
+                        {0, 0, attr.x, attr.y},
+                        {0, 1, attr.x, attr.y} };
+    quad_a(lb, rt, base_attr);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
