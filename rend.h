@@ -45,16 +45,25 @@ inline v2 operator+(v2 r, float f) { return { r.x + f, r.y + f }; };
 inline v2 operator-(v2 r, float f) { return { r.x - f, r.y - f }; };
 inline v2 operator/(v2 r, float f) { return { r.x / f, r.y / f }; };
 
+struct m4 { v4 _0, _1, _2, _3; };
+
+m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n = -1, f32 f = 1);
+m4 identity();
+
 struct GLFWwindow;
 
-struct draw_data { // todo: multiple
+struct draw_data {
     u32 prog; // todo: index and not direct opengl handle?
-    u32 tex;  //
+    u32 tex;  // todo: array
+    m4 m = identity(), v = identity(), p = identity();
 };
 
 struct rend {
     int w, h;
-    bool vsync;            // init only
+    bool vsync;  // init only
+    bool ms;     // multisample
+    bool debug = true;
+    const char* window_name = "rend";
     int max_progs = 32;    // 
     int max_textures = 32; //
     GLFWwindow* window;
@@ -67,8 +76,9 @@ struct rend {
         layout (location = 0) in vec2 aPos;
         layout (location = 1) in vec4 aAttr;
         out vec4 vAttr;
+        uniform mat4 rend_m, rend_v, rend_p;
         void main() {
-           gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
+           gl_Position = rend_p * rend_v * rend_m * vec4(aPos, 0.0, 1.0);
            vAttr = aAttr; 
         })";
     const char* fs_quad = R"(
@@ -94,7 +104,6 @@ struct rend {
     u32 max_quads = 1'000'000; // per init
     float* quad_pos; // vec2
     float* quad_attr1; // vec4
-    u32* quad_indices; // 2 triangles = 6
     u32 curr_quad_count = 0;
     draw_data default_quad_data; // first shader, no textures
 
