@@ -30,6 +30,22 @@
 
 #include "stb_image.h"
 
+m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
+    return { 
+        {2 / (r - l), 0, 0, -(r + l) / (r - l)},
+        {0, 2 / (t - b), 0, -(t + b) / (t - b)},
+        {0, 0, -2 /(f - n), -(f + n) / (f - n)},
+        {0, 0, 0, 1} };
+}
+
+m4 identity() {
+    return {
+        {1, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1} };
+}
+
 float RN() { return rand() / (float)RAND_MAX; }
 float RNC(f32 b) { return b + RN() * (1.f - 2.f * b); }
 
@@ -91,53 +107,40 @@ void rend::init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    window = glfwCreateWindow(w, h, "rend", NULL, NULL);
+    if (ms)
+        glfwWindowHint(GLFW_SAMPLES, 4);
+    window = glfwCreateWindow(w, h, window_name, NULL, NULL);
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    if (ms)
+        glEnable(GL_MULTISAMPLE);
     if (vsync)
         glfwSwapInterval(1);
     glViewport(0, 0, w, h);
     glfwSetWindowUserPointer(window, (void*)this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(gl_errors, 0);
+    if (debug) {
+        glEnable(GL_DEBUG_OUTPUT);
+        glDebugMessageCallback(gl_errors, 0);
+    }
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-    //io.ConfigViewportsNoAutoMerge = true;
-    //io.ConfigViewportsNoTaskBarIcon = true;
-
-    // Setup Dear ImGui style
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
-
-    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-
-    // Setup Platform/Renderer backends
-    const char* glsl_version = "#version 330 core";
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplOpenGL3_Init("#version 330 core");
 
     progs = (u32*)malloc(max_progs * sizeof(u32));
     textures = (u32*)malloc(max_textures * sizeof(u32));
     quad_pos = (float*)malloc(max_quads * sizeof(float) * 2 * 4);
     quad_attr1 = (float*)malloc(max_quads * sizeof(float) * 4 * 4);
-    quad_indices = (u32*)malloc(max_quads * sizeof(u32) * 6);
 
     progs[curr_progs++] = shader(vs_quad, fs_quad);
     default_quad_data = { progs[0],0 };
@@ -146,14 +149,25 @@ void rend::init() {
     glGenBuffers(1, &sb_quad_pos);
     glGenBuffers(1, &sb_quad_indices);
     glGenBuffers(1, &sb_quad_attr1);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
     glBindVertexArray(vb_quad);
 
     glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
     glBufferData(GL_ARRAY_BUFFER, max_quads * sizeof(float) * 2 * 4, NULL, GL_DYNAMIC_DRAW);
 
+    u32 *quad_indices = (u32*)malloc(max_quads * sizeof(u32) * 6);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, max_quads * sizeof(u32) * 6, NULL, GL_STATIC_DRAW);
+    for (u32 i = 0; i < max_quads; i++) {
+        u32 i_s = i * 6;
+        u32 q = i * 4;
+        quad_indices[i_s] =     q + 0;
+        quad_indices[i_s + 1] = q + 1;
+        quad_indices[i_s + 2] = q + 3;
+        quad_indices[i_s + 3] = q + 1;
+        quad_indices[i_s + 4] = q + 2;
+        quad_indices[i_s + 5] = q + 3;
+    }
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, max_quads * sizeof(u32) * 6, quad_indices, GL_STATIC_DRAW);
+    free(quad_indices);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -179,7 +193,6 @@ void rend::cleanup() {
     // quad resources
     free(quad_pos);
     free(quad_attr1);
-    free(quad_indices);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -214,9 +227,7 @@ void rend::submit(draw_data data) {
         glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
         glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
         glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, curr_quad_count * sizeof(u32) * 6, quad_indices);
-        // draw quads
+        // indicies are preinited
         glUseProgram(data.prog);
         if (data.tex) {
             glActiveTexture(GL_TEXTURE0);
@@ -224,6 +235,11 @@ void rend::submit(draw_data data) {
             u32 loc = glGetUniformLocation(data.prog, "rend_t0"); // todo: when creating shader
             glUniform1i(loc, 0);
         }
+        glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_m"), 1, true, &data.m._0.x);
+        glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_v"), 1, true, &data.v._0.x);
+        glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_p"), 1, true, &data.p._0.x);
+
+        // draw quads
         glBindVertexArray(vb_quad);
         glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
         curr_quad_count = 0;
@@ -251,11 +267,14 @@ void rend::present() { // todo: separate quad drawing into different function
 bool rend::closed() {
     glfwPollEvents();
 
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE))
+        return true;
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::GetIO().FontGlobalScale = 2.0f;
+    ImGui::GetIO().FontGlobalScale = 3.0f;
 
     return glfwWindowShouldClose(window);
 }
@@ -265,14 +284,11 @@ void rend::clear(v4 c) {
 }
 
 void rend::quad_a(v2 lb, v2 rt, v4 attr[4]) {
-    u32 curr_index = curr_quad_count * 4;
-    v2 lb_ndc = (lb * 2.0f) - 1.0f;
-    v2 rt_ndc = (rt * 2.0f) - 1.0f;
     float vertices[] = {
-            rt_ndc.x,  rt_ndc.y, // top right
-            rt_ndc.x, lb_ndc.y,  // bottom right
-            lb_ndc.x, lb_ndc.y,  // bottom left
-            lb_ndc.x,  rt_ndc.y  // top left 
+            rt.x, rt.y, // top right
+            rt.x, lb.y,  // bottom right
+            lb.x, lb.y,  // bottom left
+            lb.x, rt.y  // top left 
     };
     float colors[] = {
             attr[0].x, attr[0].y, attr[0].z, attr[0].w,
@@ -280,13 +296,9 @@ void rend::quad_a(v2 lb, v2 rt, v4 attr[4]) {
             attr[2].x, attr[2].y, attr[2].z, attr[2].w,
             attr[3].x, attr[3].y, attr[3].z, attr[3].w,
     };
-    unsigned int indices[] = {
-        0 + curr_index, 1 + curr_index, 3 + curr_index,
-        1 + curr_index, 2 + curr_index, 3 + curr_index
-    };
     memcpy((u8*)quad_pos + curr_quad_count * sizeof(float) * 2 * 4, vertices, sizeof(vertices));
     memcpy((u8*)quad_attr1 + curr_quad_count * sizeof(float) * 4 * 4, colors, sizeof(colors));
-    memcpy((u8*)quad_indices + curr_quad_count * sizeof(u32) * 6, indices, sizeof(indices));
+    // quad_indices are preinitialized since the indicies do not change
     curr_quad_count++; // todo: assert max quad
 }
 void rend::quad(v2 lb, v2 rt, v4 c) { // 0-1
