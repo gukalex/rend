@@ -4,7 +4,7 @@
 #include <stdlib.h>
 namespace demo_compute {
 const u32 WG_SIZE = 256; /*+ copy in the shader*/
-u32 compute = 0, input_buffer = 0, output_buffer = 0, res_buffer = 0;
+u32 compute = 0, input_buffer = 0, output_buffer = 0;
 u32* cpu_arr = 0;
 u64 count = 0, padded = 0, group_size = 0, res = 0;
 i64 diff = 0, sum_diff = 0;
@@ -53,7 +53,7 @@ void update(rend& R) {
         i64 start = tnow();
         res = 0;
         if (use_compute) {
-            R.dispatch({ compute, (u32)group_size, 1, 1, {input_buffer, output_buffer, res_buffer} });
+            R.dispatch({ compute, (u32)group_size, 1, 1, {input_buffer, output_buffer} });
             R.ssbo_barrier(); // Wait for the compute shader to finish
             u32* out = (u32*)R.map(output_buffer, 0, group_size * sizeof(u32), MAP_READ);
             i64 sum_start = tnow();

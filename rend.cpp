@@ -120,6 +120,8 @@ void rend::init() {
         glEnable(GL_MULTISAMPLE);
     if (vsync)
         glfwSwapInterval(1);
+    else
+        glfwSwapInterval(0);
     glViewport(0, 0, w, h);
     glfwSetWindowUserPointer(window, (void*)this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);

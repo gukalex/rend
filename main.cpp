@@ -22,7 +22,7 @@ int main(void) {
     i64 timer_start = tnow();
     i64 every_state = tnow();
 
-    bool show_demo_window = true;
+    bool show_demo_window = false;
     while (!R.closed()) {
         static avg_data fps_avg = avg_init(0.5), frametime_avg = avg_init(0.5);
         ImGui::Text("FPS: %f (avg %f), avg timeframe: %f, time: %f", 1/R.fd, avg(1 / R.fd, &fps_avg), avg(R.fd * 1000.f, &frametime_avg), sec(tnow()-timer_start));
