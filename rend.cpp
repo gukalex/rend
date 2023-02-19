@@ -64,39 +64,43 @@ void GLAPIENTRY gl_errors(GLenum source,GLenum type,GLuint id,GLenum severity,GL
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
-u32 rend::shader(const char* vs, const char* fs) {
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vs, NULL);
-    glCompileShader(vertexShader);
+u32 rend::shader(const char* vs, const char* fs, const char* cs, bool verbose) {
+    auto compile = [](u32 type, const char* src, bool verbose) {
+        u32 shader = glCreateShader(type);
+        glShaderSource(shader, 1, &src, NULL);
+        glCompileShader(shader);
+        if (verbose) {
+            int success;
+            char infoLog[512];
+            glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+            if (!success)
+            {
+                glGetShaderInfoLog(shader, 512, NULL, infoLog);
+                printf("%d: %s\n", type, infoLog);
+            }
+        }
+        return shader;
+    };
+    u32 vertex = vs ? compile(GL_VERTEX_SHADER, vs, verbose) : 0;
+    u32 fragment = fs ? compile(GL_FRAGMENT_SHADER, fs, verbose) : 0;
+    u32 compute = cs ? compile(GL_COMPUTE_SHADER, cs, verbose) : 0;
+    u32 prog = glCreateProgram();
+    if (vs) glAttachShader(prog, vertex);
+    if (fs) glAttachShader(prog, fragment);
+    if (cs) glAttachShader(prog, compute);
+    glLinkProgram(prog);
     int success;
     char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        printf("vertex: %s\n", infoLog);
+    if (verbose) {
+        glGetProgramiv(prog, GL_LINK_STATUS, &success);
+        if (!success) {
+            glGetProgramInfoLog(prog, 512, NULL, infoLog);
+            printf("shader link: %s", infoLog);
+        }
     }
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fs, NULL);
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        printf("fragment: %s\n", infoLog);
-    }
-    u32 prog = glCreateProgram();
-    glAttachShader(prog, vertexShader);
-    glAttachShader(prog, fragmentShader);
-    glLinkProgram(prog);
-    glGetProgramiv(prog, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(prog, 512, NULL, infoLog);
-        printf("shader link: %s", infoLog);
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
+    if (vs) glDeleteShader(vertex);
+    if (fs) glDeleteShader(fragment);
+    if (cs) glDeleteShader(compute);
     return prog;
 }
 
@@ -208,6 +212,38 @@ u32 rend::texture(const char* filename) {
     stbi_image_free(data);
 }
 
+u32 rend::ssbo(u64 size, void* init_data, bool init_with_value, u32 default_u32_value) {
+    // Generate the input buffer
+    u32 buffer = 0;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, size, init_data, GL_STATIC_DRAW);
+    if (glGetError() != GL_NO_ERROR) return 0; // no need ?
+    if (init_with_value) {
+        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED, GL_UNSIGNED_INT, (void*)&default_u32_value);
+    }
+    return buffer;
+}
+
+void rend::free_resources(resources res) {
+    glDeleteBuffers(DATA_MAX_ELEM, res.buffer);
+    for (int i = 0; i < DATA_MAX_ELEM; i++)
+        glDeleteProgram(res.prog[i]);
+    glDeleteTextures(DATA_MAX_ELEM, res.texture);
+}
+
+void* rend::map(u32 buffer, u64 offset, u64 size, map_type flags) {
+    // assert(GL_MAP_READ_BIT == MAP_READ && GL_MAP_WRITE_BIT == MAP_WRITE)
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer); // todo: type parameter
+    void* data = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, offset, size, flags);
+    return data;
+}
+
+void rend::unmap(u32 buffer) {
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+}
+
 u32 rend::texture(u8* data, int w, int h, int channel_count) {
     u32 tex;
     glGenTextures(1, &tex);
@@ -244,6 +280,19 @@ void rend::submit(draw_data data) {
         glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
         curr_quad_count = 0;
     }
+    // todo: unbind
+}
+
+void rend::dispatch(dispatch_data data) {
+    glUseProgram(data.prog);
+    for (int i = 0; i < DATA_MAX_ELEM; i++) {
+        if (data.ssbo[i]) glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, data.ssbo[i]); // todo: unbind
+    }
+    glDispatchCompute(data.x, data.y, data.z);
+}
+
+void rend::ssbo_barrier() {
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void rend::present() { // todo: separate quad drawing into different function
@@ -274,7 +323,7 @@ bool rend::closed() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::GetIO().FontGlobalScale = 3.0f;
+    ImGui::GetIO().FontGlobalScale = 1.0f;
 
     return glfwWindowShouldClose(window);
 }

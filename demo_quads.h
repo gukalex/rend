@@ -1,4 +1,3 @@
-// todo: hang/slow fps OOB glitch
 #pragma once
 #include "rend.h"
 #include "imgui/imgui.h"
@@ -25,7 +24,6 @@ void init(rend& R) {
 void update(rend& R) {
     float x_ar = R.w / (float)R.h;
     data.p = ortho(0, x_ar, 0, 1);
-
     ImGui::SliderInt("quads", &q_curr, 0, R.max_quads);
     ImGui::SliderFloat("speed", &speed, 0.f, 3.f);
     static float sizem = 1.0f;
