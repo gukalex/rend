@@ -1,11 +1,6 @@
 #pragma once
 
-using f32 = float;
-using u8 = unsigned char;
-using u32 = unsigned int;
-using i32 = int;
-using i64 = long long int;
-using u64 = long long unsigned;
+#include "std.h" // for basic type aliases
 
 float RN();
 float RNC(f32 b);
@@ -59,7 +54,7 @@ struct draw_data {
     m4 m = identity(), v = identity(), p = identity();
 };
 
-constexpr u32 DATA_MAX_ELEM = 4;
+constexpr u32 DATA_MAX_ELEM = 4; // todo: just size + pointers
 struct dispatch_data {
     u32 prog = 0;
     u32 x = 1, y = 1, z = 1;
@@ -69,7 +64,7 @@ struct dispatch_data {
 };
 
 struct resources {
-    u32 buffer[DATA_MAX_ELEM];
+    u32 buffer[DATA_MAX_ELEM]; // todo: just size + pointers
     u32 prog[DATA_MAX_ELEM];
     u32 texture[DATA_MAX_ELEM];
 };
@@ -85,6 +80,8 @@ struct rend {
     bool ms;     // multisample
     bool debug = true;
     const char* window_name = "rend";
+    u32 imgui_font_size = 16;
+    const char* imgui_font_file_ttf = "";
     int max_progs = 32;    // 
     int max_textures = 32; //
     GLFWwindow* window;
@@ -100,7 +97,7 @@ struct rend {
         uniform mat4 rend_m, rend_v, rend_p;
         void main() {
            gl_Position = rend_p * rend_v * rend_m * vec4(aPos, 0.0, 1.0);
-           vAttr = aAttr; 
+           vAttr = aAttr;
         })";
     const char* fs_quad = R"(
         #version 450 core

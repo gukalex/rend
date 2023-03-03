@@ -1,7 +1,6 @@
 // todo:
 // - fonts
-// - shaders
-// - textures/rendertarget
+// - rendertarget
 // - passes
 // - coordinates
 // - 3d
@@ -11,18 +10,16 @@
 //      - random generation
 //      - npc ai
 // - terrain
-// - compute shaders
-// - aspect ratio stuff
 
+#include "std.h"
 #include "rend.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <stdlib.h>
-#include <memory.h>
+
 // oh my
-#include <chrono>
-#include <thread>
+#include <chrono> // for tnow
+#include <thread> // for tsleep
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -58,8 +55,10 @@ void tsleep(i64 nano) {
 
 void GLAPIENTRY gl_errors(GLenum source,GLenum type,GLuint id,GLenum severity,GLsizei length,
     const GLchar* message, const void* userParam) {
-    printf("GL %s t(0x%x), s(0x%x): %s\n", (type == GL_DEBUG_TYPE_ERROR ? " ERROR" : ""),
-        type, severity, message);
+    if (GL_DEBUG_SEVERITY_HIGH == severity || GL_DEBUG_SEVERITY_MEDIUM == severity) {
+        print("GL %s t(0x%x), s(0x%x): %s", (type == GL_DEBUG_TYPE_ERROR ? " ERROR" : ""),
+            type, severity, message);
+    }
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -76,7 +75,8 @@ u32 rend::shader(const char* vs, const char* fs, const char* cs, bool verbose) {
             if (!success)
             {
                 glGetShaderInfoLog(shader, 512, NULL, infoLog);
-                printf("%d: %s\n", type, infoLog);
+                print("%d: %s", type, infoLog);
+                print("%s", src);
             }
         }
         return shader;
@@ -95,7 +95,7 @@ u32 rend::shader(const char* vs, const char* fs, const char* cs, bool verbose) {
         glGetProgramiv(prog, GL_LINK_STATUS, &success);
         if (!success) {
             glGetProgramInfoLog(prog, 512, NULL, infoLog);
-            printf("shader link: %s", infoLog);
+            print("shader link: %s", infoLog);
         }
     }
     if (vs) glDeleteShader(vertex);
@@ -139,14 +139,15 @@ void rend::init() {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
+    if (imgui_font_file_ttf)
+        io.Fonts->AddFontFromFileTTF(imgui_font_file_ttf, (float)imgui_font_size);
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
-
-    progs = (u32*)malloc(max_progs * sizeof(u32));
-    textures = (u32*)malloc(max_textures * sizeof(u32));
-    quad_pos = (float*)malloc(max_quads * sizeof(float) * 2 * 4);
-    quad_attr1 = (float*)malloc(max_quads * sizeof(float) * 4 * 4);
+    progs = (u32*)alloc(max_progs * sizeof(u32));
+    textures = (u32*)alloc(max_textures * sizeof(u32));
+    quad_pos = (float*)alloc(max_quads * sizeof(float) * 2 * 4);
+    quad_attr1 = (float*)alloc(max_quads * sizeof(float) * 4 * 4);
 
     progs[curr_progs++] = shader(vs_quad, fs_quad);
     default_quad_data = { progs[0],0 };
@@ -160,7 +161,7 @@ void rend::init() {
     glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
     glBufferData(GL_ARRAY_BUFFER, max_quads * sizeof(float) * 2 * 4, NULL, GL_DYNAMIC_DRAW);
 
-    u32 *quad_indices = (u32*)malloc(max_quads * sizeof(u32) * 6);
+    u32 *quad_indices = (u32*)alloc(max_quads * sizeof(u32) * 6);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
     for (u32 i = 0; i < max_quads; i++) {
         u32 i_s = i * 6;
@@ -173,7 +174,7 @@ void rend::init() {
         quad_indices[i_s + 5] = q + 3;
     }
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, max_quads * sizeof(u32) * 6, quad_indices, GL_STATIC_DRAW);
-    free(quad_indices);
+    dealloc(quad_indices);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -197,8 +198,8 @@ void rend::cleanup() {
     glDeleteTextures(curr_tex, textures);
 
     // quad resources
-    free(quad_pos);
-    free(quad_attr1);
+    dealloc(quad_pos);
+    dealloc(quad_attr1);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -235,7 +236,7 @@ void rend::free_resources(resources res) {
 }
 
 void* rend::map(u32 buffer, u64 offset, u64 size, map_type flags) {
-    // assert(GL_MAP_READ_BIT == MAP_READ && GL_MAP_WRITE_BIT == MAP_WRITE)
+    ASSERT(GL_MAP_READ_BIT == MAP_READ && GL_MAP_WRITE_BIT == MAP_WRITE);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer); // todo: type parameter
     void* data = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, offset, size, flags);
     return data;
@@ -325,7 +326,7 @@ bool rend::closed() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::GetIO().FontGlobalScale = 1.0f;
+    //ImGui::GetIO().FontGlobalScale = 1.0f;
 
     return glfwWindowShouldClose(window);
 }
@@ -350,7 +351,8 @@ void rend::quad_a(v2 lb, v2 rt, v4 attr[4]) {
     memcpy((u8*)quad_pos + curr_quad_count * sizeof(float) * 2 * 4, vertices, sizeof(vertices));
     memcpy((u8*)quad_attr1 + curr_quad_count * sizeof(float) * 4 * 4, colors, sizeof(colors));
     // quad_indices are preinitialized since the indicies do not change
-    curr_quad_count++; // todo: assert max quad
+    curr_quad_count++;
+    ASSERT(curr_quad_count <= max_quads);
 }
 void rend::quad(v2 lb, v2 rt, v4 c) { // 0-1
     v4 attr[4] = { c, c, c, c };
