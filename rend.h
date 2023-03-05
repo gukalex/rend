@@ -79,6 +79,7 @@ struct rend {
     bool vsync;  // pre-init parameter, todo: make init parameter instead
     bool ms;     // multisample
     bool debug = true;
+    bool save_and_load_win_params = false;
     const char* window_name = "rend";
     u32 imgui_font_size = 16;
     const char* imgui_font_file_ttf = "";

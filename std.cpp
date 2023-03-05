@@ -30,7 +30,7 @@ void print_sl(const char* fmt, ...) {
     va_end(args);
 }
 
-buffer read_file(const char* filename, int zero_padding_bytes) {
+buffer read_file(const char* filename, int zero_padding_bytes, bool add_padding_to_size) {
 	buffer buf = {};
 
 	FILE* file = fopen(filename, "rb");
@@ -39,12 +39,14 @@ buffer read_file(const char* filename, int zero_padding_bytes) {
 		buf.size = ftell(file);
 		fseek(file, 0, SEEK_SET);
 
-		buf.data = alloc(buf.size) + zero_padding_bytes;
+		buf.data = alloc(buf.size + zero_padding_bytes);
 
 		u64 read_count = fread(buf.data, buf.size, 1, file);
 		ASSERT(read_count != 0); // or error state
         for (int i = 0; i < zero_padding_bytes; i++)
             buf.data[buf.size + i] = 0;
+        if (add_padding_to_size)
+            buf.size += zero_padding_bytes;
 		fclose(file);
 	}
 

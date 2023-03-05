@@ -27,6 +27,13 @@
 
 #include "stb_image.h"
 
+#define REND_INI_FILENAME "rend.ini"
+#define REND_INI_VER 2
+struct rend_ini {
+    int ver = REND_INI_VER; int x = 0; int y = 0;
+    int width = 100; int height = 100; 
+};
+
 m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
     return { 
         {2 / (r - l), 0, 0, -(r + l) / (r - l)},
@@ -114,6 +121,17 @@ void rend::init() {
     if (ms)
         glfwWindowHint(GLFW_SAMPLES, 4);
     window = glfwCreateWindow(w, h, window_name, NULL, NULL);
+    if (save_and_load_win_params) {
+        buffer rend_file = read_file(REND_INI_FILENAME);
+        if (rend_file.data) {
+            rend_ini* data = (rend_ini*)rend_file.data;
+            if (data->ver == REND_INI_VER && data->width > 0 && data->height > 0) {
+                // todo: if data->x > 0 && data->y > 0 or can grab the title
+                glfwSetWindowPos(window, data->x, data->y);
+                glfwSetWindowSize(window, data->width, data->height);
+            } // else log
+        }
+    }
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     if (ms)
@@ -142,6 +160,7 @@ void rend::init() {
     if (imgui_font_file_ttf)
         io.Fonts->AddFontFromFileTTF(imgui_font_file_ttf, (float)imgui_font_size);
     ImGui::StyleColorsDark();
+    ImGui::GetStyle().FrameRounding = 12.0;
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
     progs = (u32*)alloc(max_progs * sizeof(u32));
@@ -204,6 +223,13 @@ void rend::cleanup() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    if (save_and_load_win_params) {
+        rend_ini data = {};
+        glfwGetWindowPos(window, &data.x, &data.y);
+        glfwGetWindowSize(window, &data.width, &data.height);
+        write_file(REND_INI_FILENAME, {(u8*)&data, sizeof(data)});
+    }
 
     glfwTerminate();
 }

@@ -21,8 +21,9 @@ int WinMain(void* hInstance, void* hPrevInstance, char* lpCmdLine, int nShowCmd)
 #else
 int main(void) {
 #endif
-    R.w = 1024; R.h = 1024;
+    R.w = 1024; R.h = 1300;
     R.vsync = true;
+    R.save_and_load_win_params = true;
     #ifdef _WIN32
         // todo: if dpi is high
         R.imgui_font_size = 28;

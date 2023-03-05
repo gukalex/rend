@@ -27,7 +27,7 @@ void dealloc(void* ptr);
 void print(const char* fmt, ...); // print with a new line
 void print_sl(const char* fmt, ...); // regular print, without a new line
 
-buffer read_file(const char* filename, int zero_padding_bytes = 0); // dealloc compatible
+buffer read_file(const char* filename, int zero_padding_bytes = 0, bool add_padding_to_size = false); // dealloc compatible
 void write_file(const char* filename, buffer file); // todo: errors
 
 void _assert(const char* func, int line, const char* file);
