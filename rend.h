@@ -82,7 +82,7 @@ struct rend {
     bool save_and_load_win_params = false;
     const char* window_name = "rend";
     u32 imgui_font_size = 16;
-    const char* imgui_font_file_ttf = "";
+    const char* imgui_font_file_ttf = nullptr;
     int max_progs = 32;    // 
     int max_textures = 32; //
     GLFWwindow* window;

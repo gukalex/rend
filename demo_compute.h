@@ -65,7 +65,7 @@ void update(rend& R) {
         }
         diff = tnow() - start;
     }
-    ImGui::Text("Last test time: %f seconds (%lld nano), res: %lu", sec(diff), diff, res);
+    ImGui::Text("Last test time: %f seconds (%lld nano), res: %llu", sec(diff), diff, res);
     ImGui::Text("Sum diff: %f seconds (%lld nano)", sec(sum_diff), sum_diff);
     R.clear({});
 }

@@ -1,1 +1,5 @@
-gcc main.cpp glad.c -lglfw -lGLU -lGL -lXrandr -lX11 -lrt -ldl -I. && ./a.out 
+CONFIGURE:
+install glfw (sudo apt-get install libglfw3 libglfw3-dev)
+run ./conf.sh (imgui and stb_image)
+BUILD:
+./build.sh

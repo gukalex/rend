@@ -106,7 +106,7 @@ void update(rend& R) {
     Begin("8086");
     if (Button("Reset")) { init(R); } Separator();
     if (Button("Load")) init(R); SameLine(); InputText("##asm_file", asm_filename, MAX_FILENAME);
-    InputTextMultiline("##src", (c8*)asm_file.data, asm_file.size, ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 12), ImGuiInputTextFlags_AllowTabInput);
+    if (asm_file.data) InputTextMultiline("##src", (c8*)asm_file.data, asm_file.size, ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 12), ImGuiInputTextFlags_AllowTabInput);
     Separator();
     if (Button("Load##2")) init(R); SameLine(); InputText("##bin_file", bin_filename, MAX_FILENAME);
     u32 flags = ImGuiInputTextFlags_ReadOnly;
@@ -151,16 +151,16 @@ void update(rend& R) {
             case MOV_RR: {
                 const char* dst = curr.dir ? reg[curr.is_whole][curr.reg0] : reg[curr.is_whole][curr.reg1];
                 const char* src = curr.dir ? reg[curr.is_whole][curr.reg1] : reg[curr.is_whole][curr.reg0];
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n\0", curr.desc->asm_name, dst, src);
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n", curr.desc->asm_name, dst, src);
             } break;
             case MOV_IM_TO_RR_8:
             case MOV_IM_TO_RR_16: {
                 const char* dst = reg[curr.is_whole][curr.reg0];
                 u16 value = curr.data;
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, 0x%X\n\0", curr.desc->asm_name, dst, value);
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, 0x%X\n", curr.desc->asm_name, dst, value);
             } break;
             default: 
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "; oops, unsuported instruction :)\n\0");
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "; oops, unsuported instruction :)\n");
                 break;
             }
             ASSERT(asm_size < TMP_SIZE);
