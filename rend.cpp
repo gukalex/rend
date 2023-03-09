@@ -120,7 +120,7 @@ void rend::init() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     if (ms)
         glfwWindowHint(GLFW_SAMPLES, 4);
-    window = glfwCreateWindow(w, h, window_name, NULL, NULL);
+    window = glfwCreateWindow(wh.x, wh.y, window_name, NULL, NULL);
     if (save_and_load_win_params) {
         buffer rend_file = read_file(REND_INI_FILENAME);
         if (rend_file.data) {
@@ -128,7 +128,9 @@ void rend::init() {
             if (data->ver == REND_INI_VER && data->width > 0 && data->height > 0) {
                 // todo: if data->x > 0 && data->y > 0 or can grab the title
                 glfwSetWindowPos(window, data->x, data->y);
-                glfwSetWindowSize(window, data->width, data->height);
+                wh.x = data->width;
+                wh.y = data->height;
+                glfwSetWindowSize(window, wh.x, wh.y);
             } // else log
         }
     }
@@ -140,7 +142,7 @@ void rend::init() {
         glfwSwapInterval(1);
     else
         glfwSwapInterval(0);
-    glViewport(0, 0, w, h);
+    glViewport(0, 0, wh.x, wh.y);
     glfwSetWindowUserPointer(window, (void*)this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -343,6 +345,7 @@ void rend::present() { // todo: separate quad drawing into different function
     fd = sec(curr_time - prev_time);
 }
 bool rend::closed() {
+
     glfwPollEvents();
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
@@ -356,6 +359,12 @@ bool rend::closed() {
 
     return glfwWindowShouldClose(window);
 }
+
+void rend::win_size(iv2 pwh) {
+    wh = pwh;
+    glfwSetWindowSize(window, wh.x, wh.y);
+}
+
 void rend::clear(v4 c) {
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(c.x, c.y, c.z, c.w);
@@ -395,7 +404,7 @@ void rend::quad_t(v2 lb, v2 rt, v2 attr) {
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     rend* R = (rend*)glfwGetWindowUserPointer(window);
-    R->w = width;
-    R->h = height;
-    glViewport(0, 0, R->w, R->h);
+    R->wh.x = width;
+    R->wh.y = height;
+    glViewport(0, 0, R->wh.x, R->wh.y);
 }

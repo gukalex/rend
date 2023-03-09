@@ -10,7 +10,7 @@ void init(rend& R) {
     if (!q) {
         R.textures[R.curr_tex++] = data.tex = R.texture("pepe.png");
         R.progs[R.curr_progs++] = data.prog = R.shader(R.vs_quad, R.fs_quad_tex);
-        float x_ar = R.w / (float)R.h;
+        float x_ar = R.wh.x / (float)R.wh.y;
         q = (quad*)malloc(sizeof(quad) * R.max_quads); // todo: cleanup
         for (int i = 0; i != R.max_quads; i++) { // units coord system
             float size = 0.2f * RN();
@@ -22,7 +22,7 @@ void init(rend& R) {
     }
 }
 void update(rend& R) {
-    float x_ar = R.w / (float)R.h;
+    float x_ar = R.wh.x / (float)R.wh.y;
     data.p = ortho(0, x_ar, 0, 1);
     ImGui::SliderInt("quads", &q_curr, 0, R.max_quads);
     ImGui::SliderFloat("speed", &speed, 0.f, 3.f);

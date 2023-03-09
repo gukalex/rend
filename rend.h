@@ -33,6 +33,7 @@ inline float avg(float val, avg_data* state) {
 
 struct v4 { float x, y, z, w; };
 struct v2 { float x, y; };
+struct iv2 { int x, y; };
 inline v2 operator+(v2 r, v2 l) { return { r.x + l.x, r.y + l.y }; };
 inline v2 operator-(v2 r, v2 l) { return { r.x - l.x, r.y - l.y }; };
 inline v2 operator*(v2 r, v2 l) { return { r.x * l.x, r.y * l.y }; };
@@ -75,7 +76,7 @@ enum map_type {
 };
 
 struct rend {
-    int w, h;
+    iv2 wh;
     bool vsync;  // pre-init parameter, todo: make init parameter instead
     bool ms;     // multisample
     bool debug = true;
@@ -135,6 +136,8 @@ struct rend {
     bool closed(); // todo: rename/separate 
     void present();
     void cleanup();
+
+    void win_size(iv2 wh); // set window size
 
     void clear(v4 c); // todo: push api
     void submit(draw_data data); // todo: push api

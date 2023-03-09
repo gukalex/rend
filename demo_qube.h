@@ -8,7 +8,7 @@ void init(rend& R) {
     
 }
 void update(rend& R) {
-    float x_ar = R.w / (float)R.h;
+    float x_ar = R.wh.x / (float)R.wh.y;
     data.p = ortho(0, x_ar, 0, 1);
     R.clear({ 0.3f, 0.2f, 0.5f, 0.f });
 
