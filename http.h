@@ -9,7 +9,7 @@ enum struct req_type { GET, POST };
 struct server_callback {
     req_type type;
     const char* endpoint;
-    void(*callback)(char*);
+    void(*callback)(void*, u64*, const char**); // 1MB data pointer at the moment // todo: improve or change allocation point
 };
 
 void start_server(const char* host, int port, int count, server_callback* callbacks);

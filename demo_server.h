@@ -1,5 +1,6 @@
 #include "demo_rts.h"
 #include "rend.h"
+#include <mutex>
 namespace demo_server {
 using namespace rts;
 #define FOR_OBJ(i) for (int i = 0; i < MAX_OBJ; i++)
@@ -20,8 +21,9 @@ v4 spawn_color[MAX_TEAMS] = {
     {1, 0, 1, SHADER_QUAD},
     {1, 0, 1, SHADER_QUAD},
 };
+u64 score[MAX_TEAMS] = {0};
 struct internal_object_state {
-    object_state pobj;
+    object_state pobj; // todo: keep outside of this struct so I can easily copy it
     v2 go_pos;
     int event_index;
 };
@@ -32,22 +34,37 @@ draw_data dd;
 #define MAX_COMMANDS 128
 int unprocessed_commands = 0;
 update_command commands[MAX_COMMANDS];
+std::mutex cur_st_mt;
+current_state cur_st = {};
 
-void say_hi(char* ptr) {
-    snprintf(ptr, 128, "I'm tired\n\0");
+void say_hi(void* data, u64* out_size, const char** out_content_type) {
+    int size = snprintf((c8*)data, 128, "I'm tired\n\0");
+    *out_content_type = "text/plain";
+    *out_size = size; // todo: assert size // 1MB max at the moment
+}
+
+void get_state_callback(void* data, u64* out_size, const char** out_content_type) {
+    current_state* st = (current_state*)data;
+    *out_size = sizeof(cur_st); // todo: assert size // 1MB max at the moment
+    *out_content_type = "application/octet-stream";
+    cur_st_mt.lock(); defer {cur_st_mt.unlock();};
+    memcpy(st, &cur_st, sizeof(cur_st));
 }
 
 void init(rend& R) {
-    static server_callback cbk{ req_type::GET, "/hi", say_hi };
-    start_server("localhost", 5555, 1, &cbk);
+    static server_callback cbk[] = { 
+        {req_type::GET, "/hi", say_hi},
+        {req_type::GET, "/state", get_state_callback},
+    };
+    start_server("0.0.0.0", 8080, ARSIZE(cbk), cbk);
     if (!dd.prog) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
         // todo: assert files exist
-        R.textures[R.curr_tex++] = dd.tex[0] = R.texture("star.png");
-        R.textures[R.curr_tex++] = dd.tex[1] = R.texture("cloud.png");
-        R.textures[R.curr_tex++] = dd.tex[2] = R.texture("lightning.png");
-        R.textures[R.curr_tex++] = dd.tex[3] = R.texture("heart.png");
-        R.textures[R.curr_tex++] = dd.tex[4] = R.texture("res.png");
+        R.textures[R.curr_tex++] = dd.tex[0] = R.texture("amogus.png");
+        R.textures[R.curr_tex++] = dd.tex[1] = R.texture("din.jpg");
+        R.textures[R.curr_tex++] = dd.tex[2] = R.texture("pool.png");
+        R.textures[R.curr_tex++] = dd.tex[3] = R.texture("pepe.png");
+        R.textures[R.curr_tex++] = dd.tex[4] = R.texture("coffee.png");
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
         in vec4 vAttr;
         out vec4 FragColor;
@@ -112,6 +129,7 @@ void push_event(u32 obj_id, event_type ev) {
     obj[obj_id].pobj.last_events[obj[obj_id].event_index++] = ev;
 }
 
+u64 frame_count = 0;
 void update(rend& R) {
     ImGui::Begin("Server"); defer{ ImGui::End(); };
     static v2 go_pos = { 50, 50 };
@@ -172,7 +190,7 @@ void update(rend& R) {
         }
     }
     float fd = (R.fd > 1/60.f ? 1/60.f : R.fd); // sould be fixed so we don't freak out on spikes
-
+    frame_count++;
     // process new commands, update under mutex
     if (unprocessed_commands > 0) {
         for (int i = 0; i < unprocessed_commands; i++) {
@@ -268,7 +286,17 @@ void update(rend& R) {
         }
     }
 
-
+    // update the state that will be shared with clients
+    {
+        cur_st_mt.lock(); defer{ cur_st_mt.unlock(); };
+        cur_st.timestamp = tnow();
+        cur_st.frame_count = frame_count;
+        memcpy(cur_st.score, score, sizeof(score));
+        cur_st.info_size = MAX_OBJ; // todo: construct range only visible to a specific client
+        FOR_OBJ(i) {
+            cur_st.info[i] = obj[i].pobj;
+        }
+    }
 
     FOR_OBJ(i) {
         switch (obj[i].pobj.type) {

@@ -51,7 +51,7 @@ int main(void) {
         R.imgui_font_file_ttf = "C:\\data\\rend\\imgui\\misc\\fonts\\Cousine-Regular.ttf";
     #else
         // todo: if dpi is high
-        R.imgui_font_size = 28;
+        R.imgui_font_size = 16;
         R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
     #endif
     R.init();

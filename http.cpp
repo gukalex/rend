@@ -49,10 +49,11 @@ void start_server(const char* host, int port, int count, server_callback *callba
             switch (callbacks[i].type) {
             case req_type::GET:
                 srv.Get(callbacks[i].endpoint, [=](const httplib::Request&, httplib::Response& res) {
-                    char text[128] = {};
-                    callbacks[i].callback(text);
-                    res.set_content(text, 128, "text/plain");
-                    //res.set_content("Hello World!", "text/plain");
+                    char* data = (c8*)alloc(1024 * 1024 * 1024);
+                    u64 size = 0;
+                    const char* content_type = nullptr;
+                    callbacks[i].callback(data, &size, &content_type);
+                    res.set_content(data, size, content_type);
                 });
                 break;
             case req_type::POST:

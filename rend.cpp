@@ -26,6 +26,7 @@
 #include "imgui_impl_opengl3.h"
 
 #include "stb_image.h"
+#include <math.h>
 
 #define REND_INI_FILENAME "rend.ini"
 #define REND_INI_VER 2
