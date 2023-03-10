@@ -2,6 +2,7 @@
 #include "http.h"
 #include "httplib.h"
 #include <stdlib.h> // memcpy
+#include <thread>
 
 buffer http_get(const char* host, int port, const char* req) {
     buffer buf = {0,0};
@@ -9,13 +10,13 @@ buffer http_get(const char* host, int port, const char* req) {
     //cli.set_connection_timeout(0, 100000); // 300 milliseconds
     auto res = cli.Get(req);
     if (res) {
-        printf("resbody: %s\n", res->body.c_str());
+        print("resbody: %s", res->body.c_str());
         buf.data = alloc(res->body.size() + 1/*?*/);
         buf.size = res->body.size();
         buf.data[buf.size] = 0; // to be safe
         memcpy(buf.data, res->body.data(), res->body.size());
     } else {
-        printf("Error code : %d\n", (int)res.error());
+        print("Error code : %d", (int)res.error());
     }
     return buf;
 }
@@ -32,11 +33,35 @@ buffer http_post(const char* host, int port, const char* req, buffer file) {
     }
     auto res = cli.Post(req, items);
     if (res) {
-        printf("resbody: %s\n", res->body.c_str());
+        print("resbody: %s\n", res->body.c_str());
         buf.data = alloc(res->body.size() + 1/*?*/);
         memcpy(buf.data, res->body.data(), res->body.size() + 1);
     } else {
-        printf("Error code : %d\n", (int)res.error());
+        print("Error code : %d\n", (int)res.error());
     }
     return buf;
+}
+
+void start_server(const char* host, int port, int count, server_callback *callbacks) {
+    std::thread srv_thread([=]() {
+        httplib::Server srv;
+        for (int i = 0; i < count; i++) {
+            switch (callbacks[i].type) {
+            case req_type::GET:
+                srv.Get(callbacks[i].endpoint, [=](const httplib::Request&, httplib::Response& res) {
+                    char text[128] = {};
+                    callbacks[i].callback(text);
+                    res.set_content(text, 128, "text/plain");
+                    //res.set_content("Hello World!", "text/plain");
+                });
+                break;
+            case req_type::POST:
+                break;
+            }
+        }
+        srv.set_keep_alive_max_count(INT_MAX);
+        srv.set_keep_alive_timeout(INT_MAX);
+        srv.listen(host, port);
+    });
+    srv_thread.detach();
 }

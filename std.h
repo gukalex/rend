@@ -4,6 +4,15 @@
 #ifndef ARSIZE
 #define ARSIZE(a) (sizeof(a)/sizeof(a[0]))
 #endif
+#define CONCAT(x, y) x##y
+#define CONCAT_LINE_PREPROC(x, y) CONCAT(x, y)
+#define CONCAT_LINE(x) CONCAT_LINE_PREPROC(x, __LINE__)
+
+template<typename F> struct _defer { F f; _defer(F f) : f(f) {}; ~_defer() { f();} };
+#define defer _defer CONCAT_LINE(_defer_) = [&]()
+
+#define max(a,b) (a > b ? a : b)
+#define min(a,b) (a > b ? b : a)
 
 using u64 = unsigned long long;
 using i64 = long long;
@@ -24,6 +33,12 @@ struct buffer {
 u8* alloc(u64 size);
 void dealloc(void* ptr);
 
+struct print_options {
+    const char* filename = 0;
+    bool always_flash = false; // slow
+    bool imgui = false;
+};
+void set_print_options(print_options opts); // set filename to 0 to close debug file
 void print(const char* fmt, ...); // print with a new line
 void print_sl(const char* fmt, ...); // regular print, without a new line
 

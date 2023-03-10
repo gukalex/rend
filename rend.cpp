@@ -50,8 +50,20 @@ m4 identity() {
         {0, 0, 0, 1} };
 }
 
+f32 len(v2 v) {
+    return { sqrtf(v.x * v.x + v.y * v.y) };
+}
+v2 norm(v2 v) {
+    return v / len(v);
+}
+
 float RN() { return rand() / (float)RAND_MAX; }
 float RNC(f32 b) { return b + RN() * (1.f - 2.f * b); }
+float RNC(f32 b, f32 e) { 
+    f32 range = abs(e - b);
+    f32 start = fminf(b, e);
+    return start + range * RN();
+}
 
 i64 tnow() { // nanoseconds since epoch
     return std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -171,7 +183,7 @@ void rend::init() {
     quad_attr1 = (float*)alloc(max_quads * sizeof(float) * 4 * 4);
 
     progs[curr_progs++] = shader(vs_quad, fs_quad);
-    default_quad_data = { progs[0],0 };
+    default_quad_data = { progs[0], 0 };
 
     glGenVertexArrays(1, &vb_quad);
     glGenBuffers(1, &sb_quad_pos);
@@ -296,11 +308,14 @@ void rend::submit(draw_data data) {
         glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
         // indicies are preinited
         glUseProgram(data.prog);
-        if (data.tex) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, data.tex);
-            u32 loc = glGetUniformLocation(data.prog, "rend_t0"); // todo: when creating shader
-            glUniform1i(loc, 0);
+        for (int i = 0; i < DATA_MAX_ELEM; i++) {
+            if (data.tex) {
+                glActiveTexture(GL_TEXTURE0 + i);
+                glBindTexture(GL_TEXTURE_2D, data.tex[i]);
+                char tex_name[] = "rend_t*"; tex_name[6] = '0' + i;
+                u32 loc = glGetUniformLocation(data.prog, tex_name); // todo: when creating shader
+                glUniform1i(loc, i);
+            }
         }
         glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_m"), 1, true, &data.m._0.x);
         glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_v"), 1, true, &data.v._0.x);
@@ -363,6 +378,29 @@ bool rend::closed() {
 void rend::win_size(iv2 pwh) {
     wh = pwh;
     glfwSetWindowSize(window, wh.x, wh.y);
+}
+
+bool rend::key_pressed(u32 kt) {
+    if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) return false;
+    switch (kt) {
+    case KT::MBL: return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    case KT::MBR: return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    default: {
+        return glfwGetKey(window, kt) == GLFW_PRESS;
+    } break;
+    }
+    return false;
+}
+
+iv2 rend::mouse() {
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    return {(i32)(f32)x, wh.y - (i32)(f32)y};
+}
+v2 rend::mouse_norm() {
+    iv2 pos = mouse();
+    v2 norm = {pos.x/(f32)wh.x, pos.y/(f32)wh.y};
+    return clamp(norm, { 0,0 }, {1, 1});
 }
 
 void rend::clear(v4 c) {

@@ -8,7 +8,7 @@ int q_curr = 100; float speed = 1.0;
 bool draw = true; draw_data data = { 0, 0 };
 void init(rend& R) {
     if (!q) {
-        R.textures[R.curr_tex++] = data.tex = R.texture("pepe.png");
+        R.textures[R.curr_tex++] = data.tex[0] = R.texture("pepe.png");
         R.progs[R.curr_progs++] = data.prog = R.shader(R.vs_quad, R.fs_quad_tex);
         float x_ar = R.wh.x / (float)R.wh.y;
         q = (quad*)malloc(sizeof(quad) * R.max_quads); // todo: cleanup

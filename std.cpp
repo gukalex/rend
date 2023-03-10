@@ -13,8 +13,30 @@ void dealloc(void* ptr) {
     free(ptr);
 }
 
+static print_options g_opts;
+static FILE* g_print_file;
+static char imgui_buffer[4 * 1024];
+
+void set_print_options(print_options opts) {
+    g_opts = opts;
+    if (!g_opts.filename && g_print_file) {
+        fclose(g_print_file); g_print_file = nullptr;
+    }
+    if (g_opts.filename)
+        g_print_file = fopen(g_opts.filename, "wb");
+}
+
 void print(const char* fmt, ...) {
-    // todo: log to file when console isn't used
+    if (g_opts.filename) {
+        char temp[1024];
+        va_list args;
+        va_start(args, fmt);
+        int pos = vsnprintf(temp, 1024, fmt, args);
+        va_end(args);
+        temp[pos++] = '\n';
+        fwrite(temp, pos, 1, g_print_file);
+        if (g_opts.always_flash) fflush(g_print_file);
+    } // else {
     va_list args;
     va_start(args, fmt);
     vprintf(fmt, args);
@@ -23,6 +45,15 @@ void print(const char* fmt, ...) {
 }
 
 void print_sl(const char* fmt, ...) {
+    if (g_opts.filename) {
+        char temp[1024];
+        va_list args;
+        va_start(args, fmt);
+        int pos = vsnprintf(temp, 1024, fmt, args);
+        va_end(args);
+        fwrite(temp, pos, 1, g_print_file);
+        if (g_opts.always_flash) fflush(g_print_file);
+    } // else {
     // todo: log to file when console isn't used
     va_list args;
     va_start(args, fmt);

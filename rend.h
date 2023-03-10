@@ -4,6 +4,7 @@
 
 float RN();
 float RNC(f32 b);
+float RNC(f32 b, f32 e);
 
 i64 tnow();
 void tsleep(i64 nano);
@@ -32,7 +33,10 @@ inline float avg(float val, avg_data* state) {
 }
 
 struct v4 { float x, y, z, w; };
-struct v2 { float x, y; };
+struct v2 { float x, y; 
+v2 operator+=(v2 l) { x += l.x; y += l.y; return *this; };
+operator bool() { return x != 0 || y != 0; };
+};
 struct iv2 { int x, y; };
 inline v2 operator+(v2 r, v2 l) { return { r.x + l.x, r.y + l.y }; };
 inline v2 operator-(v2 r, v2 l) { return { r.x - l.x, r.y - l.y }; };
@@ -46,16 +50,32 @@ struct m4 { v4 _0, _1, _2, _3; };
 
 m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n = -1, f32 f = 1);
 m4 identity();
+f32 len(v2 v);
+v2 norm(v2 v);
+inline f32 clamp(f32 v, f32 b, f32 e) {
+    return max(b, min(v, e));
+}
+
+inline v2 clamp(v2 v, v2 b, v2 e) {
+    return { clamp(v.x, b.x, e.x), clamp(v.y, b.y, e.y) };
+}
 
 struct GLFWwindow;
+namespace KT {
+enum {
+    KEY = 0,
+    MBL,
+    MBR
+};
+}
 
+constexpr u32 DATA_MAX_ELEM = 8; // todo: just size + pointers
 struct draw_data {
     u32 prog; // todo: index and not direct opengl handle?
-    u32 tex;  // todo: array
+    u32 tex[DATA_MAX_ELEM];  // todo: array
     m4 m = identity(), v = identity(), p = identity();
 };
 
-constexpr u32 DATA_MAX_ELEM = 4; // todo: just size + pointers
 struct dispatch_data {
     u32 prog = 0;
     u32 x = 1, y = 1, z = 1;
@@ -138,6 +158,9 @@ struct rend {
     void cleanup();
 
     void win_size(iv2 wh); // set window size
+    bool key_pressed(u32 kt);
+    iv2 mouse();
+    v2 mouse_norm();
 
     void clear(v4 c); // todo: push api
     void submit(draw_data data); // todo: push api

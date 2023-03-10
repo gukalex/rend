@@ -20,6 +20,7 @@ g++ main.cpp rend.cpp std.cpp -I. glad.o stb_image.o -Iimgui/backends -Iimgui im
 #include "demo_qube.h"
 #include "8086.h"
 #include "demo_client.h"
+#include "demo_server.h"
 
 
 struct demo { void (*init)(rend& R); void (*update)(rend& R); const char* name; };
@@ -27,7 +28,8 @@ demo demos[] = { {cpu_sim::init, cpu_sim::update, "8086"},
                  {demo_quads::init, demo_quads::update, "quads"},
                  {demo_compute::init, demo_compute::update, "compute"},
                  {demo_qube::init, demo_qube::update, "qube"},
-                 {client::init, client::update, "client"} };
+                 {client::init, client::update, "client"},
+                 {demo_server::init, demo_server::update, "server"} };
 int demos_count = sizeof(demos) / sizeof(demo);
 
 rend R;
@@ -37,6 +39,9 @@ int WinMain(void* hInstance, void* hPrevInstance, char* lpCmdLine, int nShowCmd)
 #else
 int main(void) {
 #endif
+    set_print_options({ "debug.txt" });
+    defer{ set_print_options({0}); };
+
     R.wh = { 1024, 1024 };
     R.vsync = true;
     R.save_and_load_win_params = true;
@@ -51,7 +56,7 @@ int main(void) {
     #endif
     R.init();
     
-    int curr_demo = 4;
+    int curr_demo = 5;
     demos[curr_demo].init(R);
 
     i64 timer_start = tnow();
