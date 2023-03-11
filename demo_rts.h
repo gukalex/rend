@@ -42,6 +42,11 @@ constexpr int MAGIC_CURRENT_STATE = 0xBEEFFFFF;
 constexpr int MAGIC_UPDATE_COMMAND = 0xBABEEEEE;
 constexpr int VERSION_CURRENT_STATE = 1;
 constexpr int VERSION_UPDATE_COMMAND = 1;
+
+#define FOR_OBJ(i) for (int i = 0; i < MAX_OBJ; i++)
+#define FOR_COFF(i) for (int i = MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS + MAX_COFF; i++)
+#define FOR_SPAWN(i) for (int i = MAX_TEAMS * MAX_UNIT; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i++)
+
 enum obj_type {
     OBJ_NONE,
     OBJ_UNIT, // both self and enemy

@@ -3,9 +3,6 @@
 #include <mutex>
 namespace demo_server {
 using namespace rts;
-#define FOR_OBJ(i) for (int i = 0; i < MAX_OBJ; i++)
-#define FOR_COFF(i) for (int i = MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS + MAX_COFF; i++)
-#define FOR_SPAWN(i) for (int i = MAX_TEAMS * MAX_UNIT; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i++)
 #define SHADER_QUAD 5.0f
 #define SHADER_COFF 4.0f
 v2 spawn_loc[MAX_TEAMS] = {
@@ -30,41 +27,89 @@ struct internal_object_state {
 internal_object_state obj[MAX_OBJ];
 draw_data dd;
 
-// accessible upon unlocking the mutex 
 #define MAX_COMMANDS 128
+std::mutex command_mt;
 int unprocessed_commands = 0;
 update_command commands[MAX_COMMANDS];
+// can be accessed without command_mt mutex
+int buf_unprocessed_commands = 0; // commands for temp copy
+update_command buf_commands[MAX_COMMANDS]; // commands for temp copy
+
 std::mutex cur_st_mt;
 current_state cur_st = {};
 
-void say_hi(void* data, u64* out_size, const char** out_content_type) {
-    int size = snprintf((c8*)data, 128, "I'm tired\n\0");
-    *out_content_type = "text/plain";
-    *out_size = size; // todo: assert size // 1MB max at the moment
+void say_hi(http_response* resp, const char*, u64) {
+    http_set_response(resp, "I'm tired", sizeof("I'm tired"), "text/plain");
 }
 
-void get_state_callback(void* data, u64* out_size, const char** out_content_type) {
-    current_state* st = (current_state*)data;
-    *out_size = sizeof(cur_st); // todo: assert size // 1MB max at the moment
-    *out_content_type = "application/octet-stream";
+void get_state_callback(http_response* resp, const char*, u64) {
     cur_st_mt.lock(); defer {cur_st_mt.unlock();};
-    memcpy(st, &cur_st, sizeof(cur_st));
+    http_set_response(resp, (c8*)&cur_st, sizeof(cur_st), "application/octet-stream");
+}
+
+void post_test(http_response* resp, const char* post_data, u64 post_data_size) {
+    const char res_ok[] = "Post Ok"; 
+    const char res_fail[] = "Post Fail";
+    if (post_data) {
+        v2 pos = *(v2*)post_data;
+        print("post_data: %f %f", pos.x, pos.y);
+        update_command com = {};
+        com.team_id = 1;
+        com.update_mask[1] = true;
+        com.action[1] = ACTION_GO;
+        com.go_target[1] = pos;
+
+        bool fail = false;
+        {
+            command_mt.lock(); defer{ command_mt.unlock(); };
+            if (unprocessed_commands < MAX_COMMANDS) {
+                commands[unprocessed_commands] = com;
+                unprocessed_commands++;
+            } else 
+                fail = true;
+        }
+        http_set_response(resp, (fail ? res_fail : res_ok), sizeof(fail ? res_fail : res_ok), "text/plain");
+    } else {
+        http_set_response(resp, res_fail, sizeof(res_fail), "text/plain");
+    }
+}
+
+
+void post_state_callback(http_response* resp, const char* post_data, u64 post_data_size) {
+    const char res_ok[] = "Post Ok\0"; // todo: binary
+    const char res_fail[] = "Post Fail\0";
+    if (post_data && post_data_size == sizeof(update_command)) {
+        update_command* com = (update_command*)post_data;
+        bool fail = false;
+        {
+            command_mt.lock(); defer{ command_mt.unlock(); };
+            if (unprocessed_commands < MAX_COMMANDS) {
+                commands[unprocessed_commands] = *com;
+                unprocessed_commands++;
+            }
+            else
+                fail = true;
+        }
+        http_set_response(resp, (fail ? res_fail : res_ok), sizeof(fail ? res_fail : res_ok), "text/plain");
+    }
+    else {
+        http_set_response(resp, res_fail, sizeof(res_fail), "text/plain");
+    }
 }
 
 void init(rend& R) {
     static server_callback cbk[] = { 
-        {req_type::GET, "/hi", say_hi},
-        {req_type::GET, "/state", get_state_callback},
+        {REQUEST_GET, "/hi", say_hi},
+        {REQUEST_GET, "/state", get_state_callback},
+        {REQUEST_POST, "/post_test", post_test},
+        {REQUEST_POST, "/state", post_state_callback},
     };
     start_server("0.0.0.0", 8080, ARSIZE(cbk), cbk);
     if (!dd.prog) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
-        // todo: assert files exist
-        R.textures[R.curr_tex++] = dd.tex[0] = R.texture("amogus.png");
-        R.textures[R.curr_tex++] = dd.tex[1] = R.texture("din.jpg");
-        R.textures[R.curr_tex++] = dd.tex[2] = R.texture("pool.png");
-        R.textures[R.curr_tex++] = dd.tex[3] = R.texture("pepe.png");
-        R.textures[R.curr_tex++] = dd.tex[4] = R.texture("coffee.png");
+        const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
+        //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
         in vec4 vAttr;
         out vec4 FragColor;
@@ -99,7 +144,6 @@ void init(rend& R) {
             //target_obj_id;
         }
         // init spawn // todo: move at the last index last so we can render with transparency on the top
-        //for (int i = MAX_TEAMS * MAX_UNIT; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i++) {
         FOR_SPAWN(i) {
             obj[i].pobj.type = OBJ_SPAWN;
             obj[i].pobj.st = OBJ_STATE_NONE;
@@ -109,7 +153,6 @@ void init(rend& R) {
             obj[i].pobj.energy = MAX_SPAWN_ENERGY;
         }
         // init coff
-        //for (int i = MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS + MAX_COFF; i++) {
         FOR_COFF(i) {
             obj[i].pobj.type = OBJ_COFF;
             obj[i].pobj.st = OBJ_STATE_COFF_IDLE;
@@ -131,28 +174,22 @@ void push_event(u32 obj_id, event_type ev) {
 
 u64 frame_count = 0;
 void update(rend& R) {
+    // todo: flag to update in the background so I can switch between demos and expect the server to update
     ImGui::Begin("Server"); defer{ ImGui::End(); };
     static v2 go_pos = { 50, 50 };
     ImGui::SliderFloat2("Go Pos", (f32*)&go_pos, 0, 100);
     ImGui::Text("[11]: state(%d), target(%d), energy(%f)", obj[11].pobj.st, obj[11].pobj.target_obj_id, obj[11].pobj.energy);
     v2 mov_dir = {};
-    static bool keyboard_was_active = false;
-    bool update_go = false;
+    static v2 prev_mov_dir = {}; defer{ prev_mov_dir = mov_dir; };
     if (R.key_pressed('W')) mov_dir.y += 1.f;
     if (R.key_pressed('S')) mov_dir.y -= 1.f;
     if (R.key_pressed('A')) mov_dir.x -= 1.f;
     if (R.key_pressed('D')) mov_dir.x += 1.f;
-    if (mov_dir != 0) {
-        update_go = true;
-        keyboard_was_active = true;
-        mov_dir = norm(mov_dir); // fix diagonal
+    bool update_go = false;
+    if (mov_dir != prev_mov_dir) {
+        update_go = true; // todo: if new direction
+        if (mov_dir) mov_dir = norm(mov_dir); // fix diagonal, don't divide by 0
         go_pos = clamp(obj[11].pobj.pos + mov_dir * ARENA_SIZE, { 0,0 }, {ARENA_SIZE, ARENA_SIZE});
-    }
-    else if (keyboard_was_active == true /* and is moving */) {
-        keyboard_was_active = false;
-        // don't move further
-        go_pos = obj[11].pobj.pos;
-        update_go = true;
     }
     if (R.key_pressed(KT::MBL)) {
         go_pos = R.mouse_norm() * ARENA_SIZE;
@@ -191,10 +228,18 @@ void update(rend& R) {
     }
     float fd = (R.fd > 1/60.f ? 1/60.f : R.fd); // sould be fixed so we don't freak out on spikes
     frame_count++;
-    // process new commands, update under mutex
-    if (unprocessed_commands > 0) {
-        for (int i = 0; i < unprocessed_commands; i++) {
-            update_command com = commands[i];
+    
+    { // process new commands, update under mutex
+        command_mt.lock(); defer{ command_mt.unlock(); };
+        if (unprocessed_commands > 0) {
+            buf_unprocessed_commands = unprocessed_commands;
+            memcpy(buf_commands, commands, unprocessed_commands * sizeof(update_command));
+            unprocessed_commands = 0;
+        }
+    }
+    if (buf_unprocessed_commands > 0) {
+        for (int i = 0; i < buf_unprocessed_commands; i++) {
+            update_command com = buf_commands[i];
             // assert magic and version
             for (int j = 0; j < MAX_UNIT; j++) {
                 if (com.update_mask[j]) {
@@ -245,7 +290,7 @@ void update(rend& R) {
                 }
             }
         }
-        unprocessed_commands = 0;
+        buf_unprocessed_commands = 0;
     }
 
     FOR_OBJ(i) {
@@ -286,8 +331,7 @@ void update(rend& R) {
         }
     }
 
-    // update the state that will be shared with clients
-    {
+    { // update the state that will be shared with clients
         cur_st_mt.lock(); defer{ cur_st_mt.unlock(); };
         cur_st.timestamp = tnow();
         cur_st.frame_count = frame_count;

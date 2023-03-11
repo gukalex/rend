@@ -36,6 +36,8 @@ struct v4 { float x, y, z, w; };
 struct v2 { float x, y; 
 v2 operator+=(v2 l) { x += l.x; y += l.y; return *this; };
 operator bool() { return x != 0 || y != 0; };
+bool operator==(v2 l) { return x == l.x && y == l.y; };
+bool operator!=(v2 l) { return !(x == l.x && y == l.y); };
 };
 struct iv2 { int x, y; };
 inline v2 operator+(v2 r, v2 l) { return { r.x + l.x, r.y + l.y }; };

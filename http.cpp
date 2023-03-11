@@ -4,42 +4,28 @@
 #include <stdlib.h> // memcpy
 #include <thread>
 
-buffer http_get(const char* host, int port, const char* req) {
-    buffer buf = {0,0};
+http_error http_get(const char* host, int port, const char* req, buffer_ex* out) {
     httplib::Client cli(host, port);
-    //cli.set_connection_timeout(0, 100000); // 300 milliseconds
     auto res = cli.Get(req);
     if (res) {
-        print("resbody: %s", res->body.c_str());
-        buf.data = alloc(res->body.size() + 1/*?*/);
-        buf.size = res->body.size();
-        buf.data[buf.size] = 0; // to be safe
-        memcpy(buf.data, res->body.data(), res->body.size());
-    } else {
-        print("Error code : %d", (int)res.error());
+        u64 min_size = min(out->capacity, res->body.size());
+        out->size = res->body.size();
+        memcpy(out->data, res->body.data(), min_size);
     }
-    return buf;
+    return (res.error() == httplib::Error::Success ? HTTP_OK: HTTP_ERROR);
 }
 
-buffer http_post(const char* host, int port, const char* req, buffer file) {
-    buffer buf = {0,0};
+http_error http_post(const char* host, int port, const char* req, buffer file, buffer_ex* out) {
     httplib::Client cli(host, port);
-    httplib::MultipartFormDataItems items;
-    if (file.data) {
-        std::string data;
-        data.resize(file.size);
-        memcpy(&data[0], file.data, file.size);
-        items.push_back({"image_file", data, "image_file", "application/octet-stream"}); /*todo:file name*/
-    }
-    auto res = cli.Post(req, items);
+    auto res = cli.Post(req, 
+        {{"name", std::string((c8*)file.data, file.size), "filename", "application/octet-stream"}}
+    );
     if (res) {
-        print("resbody: %s\n", res->body.c_str());
-        buf.data = alloc(res->body.size() + 1/*?*/);
-        memcpy(buf.data, res->body.data(), res->body.size() + 1);
-    } else {
-        print("Error code : %d\n", (int)res.error());
+        u64 min_size = min(out->capacity, res->body.size());
+        out->size = res->body.size();
+        memcpy(out->data, res->body.data(), min_size);
     }
-    return buf;
+    return (res.error() == httplib::Error::Success ? HTTP_OK : HTTP_ERROR);
 }
 
 void start_server(const char* host, int port, int count, server_callback *callbacks) {
@@ -47,16 +33,21 @@ void start_server(const char* host, int port, int count, server_callback *callba
         httplib::Server srv;
         for (int i = 0; i < count; i++) {
             switch (callbacks[i].type) {
-            case req_type::GET:
+            case REQUEST_GET:
                 srv.Get(callbacks[i].endpoint, [=](const httplib::Request&, httplib::Response& res) {
-                    char* data = (c8*)alloc(1024 * 1024 * 1024);
-                    u64 size = 0;
-                    const char* content_type = nullptr;
-                    callbacks[i].callback(data, &size, &content_type);
-                    res.set_content(data, size, content_type);
+                    callbacks[i].callback(&res, 0, 0); // -> res.set_content(data, size, content_type);
                 });
                 break;
-            case req_type::POST:
+            case REQUEST_POST:
+                srv.Post(callbacks[i].endpoint, [=](const httplib::Request& req, httplib::Response& res) {
+                    if (req.files.size()) {
+                        const char* data = (*req.files.begin()).second.content.data();
+                        u64 size = (*req.files.begin()).second.content.size();
+                        callbacks[i].callback(&res, data, size);
+                    } else {
+                        callbacks[i].callback(&res, 0, 0);
+                    }
+                });
                 break;
             }
         }
@@ -65,4 +56,9 @@ void start_server(const char* host, int port, int count, server_callback *callba
         srv.listen(host, port);
     });
     srv_thread.detach();
+}
+
+void http_set_response(http_response* resp, const char* data, u64 size, const char* content_type) {
+    httplib::Response* res = (httplib::Response*)resp;
+    res->set_content(data, size, content_type);
 }
