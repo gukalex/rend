@@ -31,11 +31,14 @@ constexpr f32 MAX_COFF_ENERGY = 2000.f;
 constexpr f32 UNIT_MIN_OPERATIONAL_ENERGY = 100.f;
 constexpr f32 GRAB_ENERGY_PER_S = 300.f;
 constexpr f32 SLEEP_ENERGY_PER_S = 100.f;
+constexpr f32 SLEEP_ENERGY_AT_BASE_PER_S = 200.f;
 constexpr f32 UNIT_SPEED = ARENA_SIZE / 10.f;
 constexpr int MAX_UNIT = 10;
 constexpr int MAX_TEAMS = 4;
 constexpr int MAX_COFF = 10;
 constexpr int MAX_OBJ = ((MAX_UNIT* MAX_TEAMS) + MAX_TEAMS + MAX_COFF);
+constexpr int SPAWN_0 = (MAX_UNIT* MAX_TEAMS);
+constexpr int COFF_0 = (MAX_UNIT* MAX_TEAMS + MAX_TEAMS);
 constexpr u8 NO_TEAM_ID = 0xFF;
 constexpr int MAX_LAST_EVENTS = 4;
 constexpr int MAGIC_CURRENT_STATE = 0xBEEFFFFF;
@@ -44,8 +47,8 @@ constexpr int VERSION_CURRENT_STATE = 1;
 constexpr int VERSION_UPDATE_COMMAND = 1;
 
 #define FOR_OBJ(i) for (int i = 0; i < MAX_OBJ; i++)
-#define FOR_COFF(i) for (int i = MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS + MAX_COFF; i++)
-#define FOR_SPAWN(i) for (int i = MAX_TEAMS * MAX_UNIT; i < MAX_TEAMS * MAX_UNIT + MAX_TEAMS; i++)
+#define FOR_COFF(i) for (int i = COFF_0; i < COFF_0 + MAX_COFF; i++)
+#define FOR_SPAWN(i) for (int i = SPAWN_0; i <SPAWN_0 + MAX_TEAMS; i++)
 
 enum obj_type {
     OBJ_NONE,
@@ -69,7 +72,8 @@ enum action_type {
     ACTION_NONE,
     ACTION_GRAB,
     ACTION_GO,
-    ACTION_PLACE
+    ACTION_PLACE,
+    ACTION_SLEEP,
     // action force wake up?
 };
 enum reason_type {
@@ -86,9 +90,11 @@ enum event_type {
     EVENT_GRAB_AQUIRE_FAIL, // out of reach, in own spawn
     EVENT_GRAB_LOST, // out of energy
     EVENT_PLACE_SUCCESS, // no fail state for that
+    EVENT_NOTHING_TO_PLACE,
     EVENT_GO_SUCCESS,
     EVENT_GO_FAIL, // out of energy
     EVENT_WOKE_UP,
+    EVENT_PUT_TO_SLEEP,
 };
 struct object_state {
     obj_type type = OBJ_NONE;

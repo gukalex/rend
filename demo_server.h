@@ -19,6 +19,7 @@ v4 spawn_color[MAX_TEAMS] = {
     {1, 0, 1, SHADER_QUAD},
 };
 u64 score[MAX_TEAMS] = {0};
+const char* team_names[MAX_TEAMS] = {"Amogus", "Stefan", "Torbjorn", "Pepe"};
 struct internal_object_state {
     object_state pobj; // todo: keep outside of this struct so I can easily copy it
     v2 go_pos;
@@ -179,6 +180,11 @@ void update(rend& R) {
     static v2 go_pos = { 50, 50 };
     ImGui::SliderFloat2("Go Pos", (f32*)&go_pos, 0, 100);
     ImGui::Text("[11]: state(%d), target(%d), energy(%f)", obj[11].pobj.st, obj[11].pobj.target_obj_id, obj[11].pobj.energy);
+    FOR_SPAWN(i) {
+        u8 team_id = obj[i].pobj.team_id;
+        ImGui::Text("%s : %llu", team_names[team_id], score[team_id]);
+    }
+    
     v2 mov_dir = {};
     static v2 prev_mov_dir = {}; defer{ prev_mov_dir = mov_dir; };
     if (R.key_pressed('W')) mov_dir.y += 1.f;
@@ -245,6 +251,7 @@ void update(rend& R) {
                 if (com.update_mask[j]) {
                     u32 index = j + com.team_id * MAX_UNIT;
                     internal_object_state& ob = obj[index];
+                    u32 target_obj_id = ob.pobj.target_obj_id;
                     //if (ob.pobj.energy < UNIT_MIN_OPERATIONAL_ENERGY) {
                     if (ob.pobj.st == OBJ_STATE_UNIT_SLEEPING) {
                         ob.pobj.reason = REASON_OUT_OF_ENERGY;
@@ -283,7 +290,24 @@ void update(rend& R) {
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                         }
                     } break;
-                    case ACTION_PLACE:
+                    case ACTION_PLACE: {
+                        ob.pobj.target_obj_id = 0;
+                        if (target_obj_id) {
+                            push_event(index, EVENT_PLACE_SUCCESS);
+                            obj[target_obj_id].pobj.st = OBJ_STATE_COFF_IDLE;
+                        } else {
+                            push_event(index, EVENT_NOTHING_TO_PLACE);
+                        }
+                        ob.pobj.st = OBJ_STATE_UNIT_IDLE;
+                    }
+                        break;
+                    case ACTION_SLEEP: {
+                        push_event(index, EVENT_PUT_TO_SLEEP);
+                        ob.pobj.target_obj_id = 0;
+                        if (target_obj_id)
+                            obj[target_obj_id].pobj.st = OBJ_STATE_COFF_IDLE;
+                        ob.pobj.st = OBJ_STATE_UNIT_SLEEPING;
+                    }
                         break;
                     default: break;
                     }
@@ -321,13 +345,29 @@ void update(rend& R) {
                 }
             } break;
             case OBJ_STATE_UNIT_SLEEPING: {
-                obj[i].pobj.energy += fd * SLEEP_ENERGY_PER_S;
+                f32 sleep_per_s = SLEEP_ENERGY_PER_S;
+                u8 team_id = obj[i].pobj.team_id;
+                v2 sp = obj[SPAWN_0 + team_id].pobj.pos;
+                if (obj[i].pobj.pos >= (sp - SPAWN_SIZE / 2.f) && obj[i].pobj.pos <= (sp + SPAWN_SIZE / 2.f))
+                    sleep_per_s = SLEEP_ENERGY_AT_BASE_PER_S;
+                obj[i].pobj.energy += fd * sleep_per_s;
                 if (obj[i].pobj.energy > MAX_UNIT_ENERGY) {
                     obj[i].pobj.st = OBJ_STATE_UNIT_IDLE;
                     push_event(i, EVENT_WOKE_UP);
                 }
             } break;
             default: break;
+        }
+    }
+
+    // score
+    FOR_COFF(i) {
+        v2 cp = obj[i].pobj.pos;
+        FOR_SPAWN(j) {
+            v2 sp = obj[j].pobj.pos;
+            if (cp >= (sp - SPAWN_SIZE / 2.f) && cp <= (sp + SPAWN_SIZE / 2.f)) {
+                score[obj[j].pobj.team_id]++;
+            }
         }
     }
 

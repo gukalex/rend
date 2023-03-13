@@ -7,7 +7,7 @@ namespace client {
 using namespace rts;
 
 draw_data dd;
-char host[32] = "127.0.0.1"; //"10.40.14.40";
+char host[32] = "10.40.14.40";
 int port = 8080;
 const u64 DATA_SIZE = 1024 * 1024 * 1024;
 buffer_ex data;
