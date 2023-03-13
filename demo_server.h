@@ -107,8 +107,8 @@ void init(rend& R) {
     start_server("0.0.0.0", 8080, ARSIZE(cbk), cbk);
     if (!dd.prog) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
-        const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
-        //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        // const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
+        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
         in vec4 vAttr;

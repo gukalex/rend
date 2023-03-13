@@ -1,14 +1,14 @@
-#include "std.h"
 #include "http.h"
 #include "httplib.h"
 #include <stdlib.h> // memcpy
 #include <thread>
+#include "std.h"
 
 http_error http_get(const char* host, int port, const char* req, buffer_ex* out) {
     httplib::Client cli(host, port);
     auto res = cli.Get(req);
     if (res) {
-        u64 min_size = min(out->capacity, res->body.size());
+        u64 min_size = MIN(out->capacity, res->body.size());
         out->size = res->body.size();
         memcpy(out->data, res->body.data(), min_size);
     }
@@ -21,7 +21,7 @@ http_error http_post(const char* host, int port, const char* req, buffer file, b
         {{"name", std::string((c8*)file.data, file.size), "filename", "application/octet-stream"}}
     );
     if (res) {
-        u64 min_size = min(out->capacity, res->body.size());
+        u64 min_size = MIN(out->capacity, res->body.size());
         out->size = res->body.size();
         memcpy(out->data, res->body.data(), min_size);
     }

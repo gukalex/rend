@@ -55,7 +55,7 @@ m4 identity();
 f32 len(v2 v);
 v2 norm(v2 v);
 inline f32 clamp(f32 v, f32 b, f32 e) {
-    return max(b, min(v, e));
+    return MAX(b, MIN(v, e));
 }
 
 inline v2 clamp(v2 v, v2 b, v2 e) {

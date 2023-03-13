@@ -16,8 +16,8 @@ void init(rend &R) {
     if (!data.data) {
         data = { (c8*)alloc(DATA_SIZE), 0, DATA_SIZE };
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
-        const char* textures[] = { "star.png", "cloud.png", "heart.png", "lightning.png", "res.png" };
-        //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        // const char* textures[] = { "star.png", "cloud.png", "heart.png", "lightning.png", "res.png" };
+        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
             in vec4 vAttr;
@@ -94,7 +94,7 @@ void update(rend &R) {
     static rts::current_state cs = {};
     static f32 time = 0;
     static char strup[128] = { 0 };
-    memcpy(strup, data.data, min(128, data.size));
+    memcpy(strup, data.data, MIN(128, data.size));
     Text("Update Response: %s", data.data);
 
     if (always_on || Button("Get State")) {
@@ -111,7 +111,7 @@ void update(rend &R) {
     Text("Server frame: %llu", cs.frame_count);
     Text("Unit 11 pos: %f %f, time: %f", cs.info[11].pos.x, cs.info[11].pos.y, time);
     static char str[128] = { 0 };
-    memcpy(str, data.data, min(128, data.size));
+    memcpy(str, data.data, MIN(128, data.size));
     Text("State Response: %s", data.data);
 
     v2 mov_dir = {};
