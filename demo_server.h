@@ -28,7 +28,7 @@ struct internal_object_state {
 internal_object_state obj[MAX_OBJ];
 draw_data dd;
 
-#define MAX_COMMANDS 128
+#define MAX_COMMANDS 256
 std::mutex command_mt;
 int unprocessed_commands = 0;
 update_command commands[MAX_COMMANDS];
@@ -84,7 +84,7 @@ void post_state_callback(http_response* resp, const char* post_data, u64 post_da
         bool fail = false;
         {
             command_mt.lock(); defer{ command_mt.unlock(); };
-            if (unprocessed_commands < MAX_COMMANDS) {
+            if (unprocessed_commands < MAX_COMMANDS) { // todo: handle it differently
                 commands[unprocessed_commands] = *com;
                 unprocessed_commands++;
             }
@@ -96,16 +96,6 @@ void post_state_callback(http_response* resp, const char* post_data, u64 post_da
     else {
         http_set_response(resp, res_fail, sizeof(res_fail), "text/plain");
     }
-}
-
-int to_index(int id) { // obj[i].obj_id = i + 1;
-    ASSERT(id != 0 && id <= MAX_OBJ); // 0 id is reserved
-    return id - 1;
-}
-
-int to_id(int index) { // obj[i].obj_id = i + 1;
-    ASSERT(index >= 0 && index < MAX_OBJ);
-    return index + 1;
 }
 
 void init(rend& R) {

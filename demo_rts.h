@@ -1,5 +1,5 @@
 #pragma once
-#include "std.h" // type aliases
+#include "std.h" // type aliases + ASSERT
 
 /*
 server endpoints:
@@ -105,8 +105,8 @@ struct object_state {
     // todo: add go pos or keep only on the server?
     // todo: bbox
     f32 energy = 0.f;
-    // todo: remove last_events and 
-    event_type last_events[MAX_LAST_EVENTS] = {}; // 2 events max per unit // todo: one? how about grabbing and then going
+    // todo: remove last_events, mostly for debug and I don't know if there's a better approach
+    event_type last_events[MAX_LAST_EVENTS] = {}; // todo: last event index, clear after every get state?
     reason_type reason = REASON_NONE;
     u32 target_obj_id = 0; // not empty if holding COFF or UNIT
 };
@@ -129,4 +129,15 @@ struct update_command {
     v2 go_target[MAX_UNIT] = {};
     u32 obj_id_target[MAX_UNIT] = {}; // grab/place obj id
 };
+
+inline int to_index(int id) { // obj[i].obj_id = i + 1;
+    ASSERT(id != 0 && id <= MAX_OBJ); // 0 id is reserved
+    return id - 1;
+}
+
+inline int to_id(int index) { // obj[i].obj_id = i + 1;
+    ASSERT(index >= 0 && index < MAX_OBJ);
+    return index + 1;
+}
+
 }
