@@ -62,6 +62,7 @@ struct buffer {
     u64 size;
 };
 
+// srand()? 
 float RN(); // random normalized 
 float RNC(f32 b); // random normalized with border(??) todo: remove, use the one below
 float RNC(f32 b, f32 e); // random in the range from b to e

@@ -20,12 +20,7 @@ v4 spawn_color[MAX_TEAMS] = {
 };
 u64 score[MAX_TEAMS] = {0};
 const char* team_names[MAX_TEAMS] = {"Amogus", "Stefan", "Torbjorn", "Pepe"};
-struct internal_object_state {
-    object_state pobj; // todo: keep outside of this struct so I can easily copy it
-    v2 go_pos;
-    int event_index;
-};
-internal_object_state obj[MAX_OBJ];
+object_state obj[MAX_OBJ];
 draw_data dd;
 
 #define MAX_COMMANDS 256
@@ -108,8 +103,8 @@ void init(rend& R) {
     start_server("0.0.0.0", 8080, ARSIZE(cbk), cbk);
     if (!dd.prog) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
-        // const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
-        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
+        //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
         in vec4 vAttr;
@@ -121,52 +116,54 @@ void init(rend& R) {
         uniform sampler2D rend_t4;
         void main() {
             vec2 uv = vAttr.xy;
-            if (vAttr.w == 0) FragColor.rgba = texture(rend_t0, uv);
-            else if (vAttr.w == 1) FragColor.rgba = texture(rend_t1, uv);
-            else if (vAttr.w == 2) FragColor.rgba = texture(rend_t2, uv);
-            else if (vAttr.w == 3) FragColor.rgba = texture(rend_t3, uv);
-            else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv);
+            vec4 alpha = vec4(1,1,1,vAttr.z);
+            if (vAttr.w == 0) FragColor.rgba = texture(rend_t0, uv) * alpha;
+            else if (vAttr.w == 1) FragColor.rgba = texture(rend_t1, uv) * alpha;
+            else if (vAttr.w == 2) FragColor.rgba = texture(rend_t2, uv) * alpha;
+            else if (vAttr.w == 3) FragColor.rgba = texture(rend_t3, uv) * alpha;
+            else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv) * alpha;
             else if (vAttr.w == 5) {
                 FragColor.rgba = vec4(vAttr.xyz, 0.25 );
             }
             else
                 FragColor.rgba = vec4(1, 0, 0, 1); // debug
         })");
+        obj[0].type = OBJ_NONE; // special id
         // init units
-        for(int i = 0; i < MAX_TEAMS * MAX_UNIT; i++) {
-            obj[i].pobj.type = OBJ_UNIT;
-            obj[i].pobj.st = OBJ_STATE_UNIT_IDLE;
-            obj[i].pobj.obj_id = to_id(i);
-            obj[i].pobj.team_id = i / 10;
-            v2 sl = spawn_loc[obj[i].pobj.team_id];
-            obj[i].pobj.pos = { RNC(sl.x - SPAWN_SIZE / 2.f, sl.x + SPAWN_SIZE / 2.f), RNC(sl.y - SPAWN_SIZE / 2.f, sl.y + SPAWN_SIZE / 2.f) };
-            obj[i].pobj.energy = MAX_UNIT_ENERGY;
+        for(int i = UNIT_0; i < UNIT_0 + MAX_TEAMS * MAX_UNIT; i++) {
+            obj[i].type = OBJ_UNIT;
+            obj[i].st = OBJ_STATE_UNIT_IDLE;
+            obj[i].obj_id = i;
+            obj[i].team_id = (i - UNIT_0) / 10;
+            v2 sl = spawn_loc[obj[i].team_id];
+            obj[i].pos = { RNC(sl.x - SPAWN_SIZE / 2.f, sl.x + SPAWN_SIZE / 2.f), RNC(sl.y - SPAWN_SIZE / 2.f, sl.y + SPAWN_SIZE / 2.f) };
+            obj[i].energy = MAX_UNIT_ENERGY;
             //last_events[2] = {};
             //target_obj_id;
         }
         // init spawn // todo: move at the last index last so we can render with transparency on the top
         FOR_SPAWN(i) {
-            obj[i].pobj.type = OBJ_SPAWN;
-            obj[i].pobj.st = OBJ_STATE_NONE;
-            obj[i].pobj.obj_id = to_id(i);
-            obj[i].pobj.team_id = i - MAX_TEAMS * MAX_UNIT;
-            obj[i].pobj.pos = spawn_loc[obj[i].pobj.team_id];
-            obj[i].pobj.energy = MAX_SPAWN_ENERGY;
+            obj[i].type = OBJ_SPAWN;
+            obj[i].st = OBJ_STATE_NONE;
+            obj[i].obj_id = i;
+            obj[i].team_id = i - SPAWN_0;
+            obj[i].pos = spawn_loc[obj[i].team_id];
+            obj[i].energy = MAX_SPAWN_ENERGY;
         }
         // init coff
         FOR_COFF(i) {
-            obj[i].pobj.type = OBJ_COFF;
-            obj[i].pobj.st = OBJ_STATE_COFF_IDLE;
-            obj[i].pobj.obj_id = to_id(i);
-            obj[i].pobj.team_id = NO_TEAM_ID;
+            obj[i].type = OBJ_COFF;
+            obj[i].st = OBJ_STATE_COFF_IDLE;
+            obj[i].obj_id = i;
+            obj[i].team_id = NO_TEAM_ID;
             float bo = ARENA_SIZE * 0.3; //border offset;
-            obj[i].pobj.pos = { RNC(bo, ARENA_SIZE - bo ), RNC(bo, ARENA_SIZE - bo) };
-            obj[i].pobj.energy = MAX_COFF_ENERGY;
+            obj[i].pos = { RNC(bo, ARENA_SIZE - bo ), RNC(bo, ARENA_SIZE - bo) };
+            obj[i].energy = MAX_COFF_ENERGY;
         }
     }
 }
 void push_event(u32 obj_index, event_type ev) {
-    obj[obj_index].pobj.last_events[obj[obj_index].event_index] = ev;
+    obj[obj_index].last_events[obj[obj_index].event_index] = ev;
     obj[obj_index].event_index = (obj[obj_index].event_index + 1) % MAX_LAST_EVENTS;
 }
 
@@ -176,12 +173,12 @@ void update(rend& R) {
     ImGui::Begin("Server"); defer{ ImGui::End(); };
     static v2 go_pos = { 50, 50 };
     ImGui::SliderFloat2("Go Pos", (f32*)&go_pos, 0, 100);
-    ImGui::Text("[11]: state(%d), target(%d), energy(%f), reason(%d)", obj[11].pobj.st, obj[11].pobj.target_obj_id, obj[11].pobj.energy, obj[11].pobj.reason);
+    ImGui::Text("[11]: state(%d), target(%d), energy(%f), reason(%d)", obj[11].st, obj[11].obj_id_target, obj[11].energy, obj[11].reason);
     for (int i = 0; i < MAX_LAST_EVENTS; i++) {
-        ImGui::Text("[11]: event[%d]: %d", i, obj[11].pobj.last_events[i]);
+        ImGui::Text("[11]: event[%d]: %d", i, obj[11].last_events[i]);
     }
     FOR_SPAWN(i) {
-        u8 team_id = obj[i].pobj.team_id;
+        u8 team_id = obj[i].team_id;
         ImGui::Text("%s : %llu", team_names[team_id], score[team_id]);
     }
     
@@ -195,7 +192,7 @@ void update(rend& R) {
     if (mov_dir != prev_mov_dir) {
         update_go = true; // todo: if new direction
         if (mov_dir) mov_dir = norm(mov_dir); // fix diagonal, don't divide by 0
-        go_pos = clamp(obj[11].pobj.pos + mov_dir * ARENA_SIZE, { 0,0 }, {ARENA_SIZE, ARENA_SIZE});
+        go_pos = clamp(obj[11].pos + mov_dir * ARENA_SIZE, { 0,0 }, {ARENA_SIZE, ARENA_SIZE});
     }
     if (R.key_pressed(KT::MBL)) {
         go_pos = R.mouse_norm() * ARENA_SIZE;
@@ -220,7 +217,7 @@ void update(rend& R) {
         com.update_mask[1] = true;
         u32 id = com.team_id * MAX_UNIT + 1;
         // find closest COFF
-        if (obj[id].pobj.target_obj_id) {
+        if (obj[id].obj_id_target) {
             com.action[1] = ACTION_PLACE;    
             commands[0] = com;
             unprocessed_commands = 1;
@@ -229,9 +226,9 @@ void update(rend& R) {
             u32 target_id = 0;
             f32 min_len = ARENA_SIZE;
             FOR_COFF(i) {
-                f32 l = len(obj[i].pobj.pos - obj[id].pobj.pos);
+                f32 l = len(obj[i].pos - obj[id].pos);
                 if (l < min_len && l < EPS_GRAB) {
-                    target_id = to_id(i);
+                    target_id = i;
                     min_len = l;
                 }
             }
@@ -259,64 +256,65 @@ void update(rend& R) {
             // assert magic and version
             for (int j = 0; j < MAX_UNIT; j++) {
                 if (com.update_mask[j]) {
-                    u32 index = j + com.team_id * MAX_UNIT;
-                    internal_object_state& ob = obj[index];
-                    u32 target_obj_id = ob.pobj.target_obj_id;
-                    //if (ob.pobj.energy < UNIT_MIN_OPERATIONAL_ENERGY) {
-                    if (ob.pobj.st == OBJ_STATE_UNIT_SLEEPING) {
-                        ob.pobj.reason = REASON_OUT_OF_ENERGY;
+                    u32 index = UNIT_0 + j + com.team_id * MAX_UNIT;
+                    object_state& ob = obj[index];
+                    u32 obj_id_target = ob.obj_id_target;
+                    //if (ob.energy < UNIT_MIN_OPERATIONAL_ENERGY) {
+                    if (ob.st == OBJ_STATE_UNIT_SLEEPING) {
+                        ob.reason = REASON_OUT_OF_ENERGY;
                         continue;
                     }
                     switch (com.action[j]) {
                     case ACTION_GO:
-                        if (ob.go_pos.x > ARENA_SIZE || ob.go_pos.x < 0 || ob.go_pos.y > ARENA_SIZE || ob.go_pos.y < 0) {
-                            ob.pobj.reason = REASON_OUT_OF_BOUNDS;
+                        if (ob.go_target.x > ARENA_SIZE || ob.go_target.x < 0 || ob.go_target.y > ARENA_SIZE || ob.go_target.y < 0) {
+                            ob.reason = REASON_OUT_OF_BOUNDS;
+                            push_event(index, EVENT_GO_FAIL);
                         } else {
-                            ob.go_pos = com.go_target[j];
+                            ob.go_target = com.go_target[j];
                             push_event(index, EVENT_GO_SUCCESS);
-                            ob.pobj.st = OBJ_STATE_UNIT_WALKING;
+                            ob.st = OBJ_STATE_UNIT_WALKING;
                         }
                         break;
                     case ACTION_GRAB: {
                         u32 target_id = com.obj_id_target[j];
                         if (target_id == 0) {
-                            ob.pobj.reason = REASON_ZERO_TARGET;
+                            ob.reason = REASON_ZERO_TARGET;
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                             continue;
                         }
-                        if (obj[to_index(target_id)].pobj.st == OBJ_STATE_COFF_TAKEN) { // or != OBJ_IDLE or OBJ_TIRED
-                            ob.pobj.reason = REASON_TARGET_TAKEN;
+                        if (obj[target_id].st == OBJ_STATE_COFF_TAKEN) { // or != OBJ_IDLE or OBJ_TIRED
+                            ob.reason = REASON_TARGET_TAKEN;
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                             continue;
                         }
-                        f32 l = len(obj[to_index(target_id)].pobj.pos - ob.pobj.pos);
+                        f32 l = len(obj[target_id].pos - ob.pos);
                         if (l < EPS_GRAB) {
                             // grab
                             push_event(index, EVENT_GRAB_AQUIRE_SUCCESS);
-                            ob.pobj.target_obj_id = target_id;
-                            obj[to_index(target_id)].pobj.st = OBJ_STATE_COFF_TAKEN;
+                            ob.obj_id_target = target_id;
+                            obj[target_id].st = OBJ_STATE_COFF_TAKEN;
                         } else {
-                            ob.pobj.reason = REASON_FAR_AWAY;
+                            ob.reason = REASON_FAR_AWAY;
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                         }
                     } break;
                     case ACTION_PLACE: {
-                        if (target_obj_id) {
+                        if (obj_id_target) {
                             push_event(index, EVENT_PLACE_SUCCESS);
-                            obj[to_index(target_obj_id)].pobj.st = OBJ_STATE_COFF_IDLE;
+                            obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
                         } else {
                             push_event(index, EVENT_NOTHING_TO_PLACE);
                         }
-                        ob.pobj.target_obj_id = 0;
-                        ob.pobj.st = OBJ_STATE_UNIT_IDLE;
+                        ob.obj_id_target = 0;
+                        ob.st = OBJ_STATE_UNIT_IDLE;
                     }
                         break;
                     case ACTION_SLEEP: {
                         push_event(index, EVENT_PUT_TO_SLEEP);
-                        ob.pobj.target_obj_id = 0;
-                        if (target_obj_id)
-                            obj[to_index(target_obj_id)].pobj.st = OBJ_STATE_COFF_IDLE;
-                        ob.pobj.st = OBJ_STATE_UNIT_SLEEPING;
+                        ob.obj_id_target = 0;
+                        if (obj_id_target)
+                            obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
+                        ob.st = OBJ_STATE_UNIT_SLEEPING;
                     }
                         break;
                     default: break;
@@ -329,41 +327,42 @@ void update(rend& R) {
 
     FOR_OBJ(i) {
         // decrease energy while holding the target
-        u32 target_id = obj[i].pobj.target_obj_id;
+        u32 target_id = obj[i].obj_id_target;
         if (target_id) {
-            obj[i].pobj.energy -= fd * GRAB_ENERGY_PER_S;
-            if (obj[i].pobj.energy < UNIT_MIN_OPERATIONAL_ENERGY) {
+            obj[i].energy -= fd * GRAB_ENERGY_PER_S;
+            if (obj[i].energy < UNIT_MIN_OPERATIONAL_ENERGY) {
                 push_event(i, EVENT_GRAB_LOST);
                 push_event(i, EVENT_PUT_TO_SLEEP);
-                obj[i].pobj.reason = REASON_OUT_OF_ENERGY;
-                obj[i].pobj.target_obj_id = 0;
-                obj[to_index(target_id)].pobj.st = OBJ_STATE_COFF_IDLE;
-                obj[i].pobj.st = OBJ_STATE_UNIT_SLEEPING;
+                obj[i].reason = REASON_OUT_OF_ENERGY;
+                obj[i].obj_id_target = 0;
+                obj[target_id].st = OBJ_STATE_COFF_IDLE;
+                obj[i].st = OBJ_STATE_UNIT_SLEEPING;
             }
         }
-        switch (obj[i].pobj.st) {
+        switch (obj[i].st) {
             case OBJ_STATE_UNIT_WALKING: {
-                v2 dir = obj[i].go_pos - obj[i].pobj.pos;
+                v2 dir = obj[i].go_target - obj[i].pos;
                 if (len(dir) < EPS_GO) {
-                    obj[i].pobj.st = OBJ_STATE_UNIT_IDLE;
+                    obj[i].st = OBJ_STATE_UNIT_IDLE;
                     // todo: clean obj[i].go_pos?
+                    // todo: push event ARRIVED
                 } else {
                     // walk in the direction
-                    obj[i].pobj.pos += norm(dir) * fd * UNIT_SPEED;
-                    if (target_id) {
-                        obj[to_index(target_id)].pobj.pos += norm(dir) * fd * UNIT_SPEED;
+                    obj[i].pos += norm(dir) * fd * UNIT_SPEED;
+                    if (target_id) { // move attached object along with it
+                        obj[target_id].pos += norm(dir) * fd * UNIT_SPEED;
                     }
                 }
             } break;
             case OBJ_STATE_UNIT_SLEEPING: {
                 f32 sleep_per_s = SLEEP_ENERGY_PER_S;
-                u8 team_id = obj[i].pobj.team_id;
-                v2 sp = obj[SPAWN_0 + team_id].pobj.pos;
-                if (obj[i].pobj.pos >= (sp - SPAWN_SIZE / 2.f) && obj[i].pobj.pos <= (sp + SPAWN_SIZE / 2.f))
+                u8 team_id = obj[i].team_id;
+                v2 sp = obj[SPAWN_0 + team_id].pos;
+                if (obj[i].pos >= (sp - SPAWN_SIZE / 2.f) && obj[i].pos <= (sp + SPAWN_SIZE / 2.f))
                     sleep_per_s = SLEEP_ENERGY_AT_BASE_PER_S;
-                obj[i].pobj.energy += fd * sleep_per_s;
-                if (obj[i].pobj.energy > MAX_UNIT_ENERGY) {
-                    obj[i].pobj.st = OBJ_STATE_UNIT_IDLE;
+                obj[i].energy += fd * sleep_per_s;
+                if (obj[i].energy > MAX_UNIT_ENERGY) {
+                    obj[i].st = OBJ_STATE_UNIT_IDLE;
                     push_event(i, EVENT_WOKE_UP);
                 }
             } break;
@@ -373,11 +372,11 @@ void update(rend& R) {
 
     // score
     FOR_COFF(i) {
-        v2 cp = obj[i].pobj.pos;
+        v2 cp = obj[i].pos;
         FOR_SPAWN(j) {
-            v2 sp = obj[j].pobj.pos;
+            v2 sp = obj[j].pos;
             if (cp >= (sp - SPAWN_SIZE / 2.f) && cp <= (sp + SPAWN_SIZE / 2.f)) {
-                score[obj[j].pobj.team_id]++;
+                score[obj[j].team_id]++;
             }
         }
     }
@@ -388,22 +387,21 @@ void update(rend& R) {
         cur_st.frame_count = frame_count;
         memcpy(cur_st.score, score, sizeof(score));
         cur_st.info_size = MAX_OBJ; // todo: construct range only visible to a specific client
-        FOR_OBJ(i) {
-            cur_st.info[i] = obj[i].pobj;
-        }
+        memcpy(cur_st.info, obj, sizeof(obj));
     }
 
     FOR_OBJ(i) {
-        switch (obj[i].pobj.type) {
-        case OBJ_UNIT:
-            R.quad_t(obj[i].pobj.pos - UNIT_SIZE / 2.f, obj[i].pobj.pos + UNIT_SIZE / 2.f, {0.f, (f32)obj[i].pobj.team_id});
-            break;
-        case OBJ_COFF:
-            // todo: if grabbed - draw with transparent alpha
-            R.quad_t(obj[i].pobj.pos - MAX_COFF_SIZE / 2.f, obj[i].pobj.pos + MAX_COFF_SIZE / 2.f, { 0.f, SHADER_COFF });
-            break;
+        switch (obj[i].type) {
+        case OBJ_UNIT: {
+            f32 alpha_level = (obj[i].st == OBJ_STATE_UNIT_SLEEPING ? 0.2f : 1.0f);
+            R.quad_t(obj[i].pos - UNIT_SIZE / 2.f, obj[i].pos + UNIT_SIZE / 2.f, { alpha_level, (f32)obj[i].team_id });
+        } break;
+        case OBJ_COFF: {
+            f32 alpha_level = (obj[i].st == OBJ_STATE_COFF_TAKEN ? 0.2f : 1.0f);
+            R.quad_t(obj[i].pos - MAX_COFF_SIZE / 2.f, obj[i].pos + MAX_COFF_SIZE / 2.f, { alpha_level, SHADER_COFF });
+        } break;
         case OBJ_SPAWN:
-            R.quad(obj[i].pobj.pos - SPAWN_SIZE / 2.f, obj[i].pobj.pos + SPAWN_SIZE / 2.f, spawn_color[obj[i].pobj.team_id]);
+            R.quad(obj[i].pos - SPAWN_SIZE / 2.f, obj[i].pos + SPAWN_SIZE / 2.f, spawn_color[obj[i].team_id]);
             break;
         default: break;
         }

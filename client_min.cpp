@@ -8,17 +8,17 @@ run (with default parameters): ./a.out
 run with parameters: ./a.out HOST PORT
 */
 
-#include "std.h"
-#include "http.h"
-#include "demo_rts.h"
+#include "std.h" // types, print, alloc/dealloc
+#include "http.h" // http_get/post
+#include "demo_rts.h" // constants and server structs
 
 #include <stdlib.h> // atoi
 #include <memory.h> // memcpy
 
 using namespace rts; // demo_rts.h
 
-// todo: 127.0.0.1 for local tests?
-#define DEFAULT_IP "10.40.14.40"
+#define DEFAULT_IP "127.0.0.1"
+//#define DEFAULT_IP "10.40.14.40"
 #define DEFAULT_PORT 8080
 
 const char* host = DEFAULT_IP;
@@ -50,21 +50,21 @@ int main(int argc, char** argv) {
         http_error err = http_get(host, port, "/state", &response_get);
         if (err == HTTP_ERROR) continue;
         memcpy(&st, response_get.data, sizeof(st));
+        print("server tick: %llu", st.frame_count);
 
         update_command com[2] = {}; // client commands for the server (in this example we won't need more than 2 per frame)
         com[0].team_id = team_id; com[1].team_id = team_id;
 
         v2 spawn_pos = st.info[SPAWN_0 + team_id].pos;
-        int first_unit_index = team_id * MAX_UNIT; // object_state struct has obj_id field which is not a direct mapping for index. obj_id = index + 1; so 0 is reserved
+        int first_unit_index = UNIT_0 + team_id * MAX_UNIT; // first_unit_index - index in the global object array
         for (int i = first_unit_index; i < first_unit_index + MAX_UNIT; i++) {
             v2 unit_pos = st.info[i].pos;
-            int com_index = i - first_unit_index; // update command has team_id and index separated;
-            
+            int com_index = i - first_unit_index; // com_index - index in the local update_command array (0-9 and team_id are separate)
             // most basic and stupid AI implementation
             switch(st.info[i].st) { // eventually, you might want to implement your own client state (more advanced, perhaps) which is detached from the server
                 case OBJ_STATE_UNIT_IDLE:
                     // do you have coffee?
-                    if (st.info[i].target_obj_id == 0) { // no coffee, target_obj_id is an id of the object this unit carries 
+                    if (st.info[i].obj_id_target == 0) { // no coffee, obj_id_target is an id of the object this unit carries 
                         // why are aren't working? - go grab a coffee
                         // check if there's a cup nearby
                         f32 distance_to_closest_coffee = ARENA_SIZE;
@@ -82,9 +82,9 @@ int main(int argc, char** argv) {
                             // go there
                             com[1].update_mask[com_index] = true;
                             com[1].action[com_index] = ACTION_GO;
-                            com[1].go_target[com_index] = st.info[to_index(coff_id)].pos;
+                            com[1].go_target[com_index] = st.info[coff_id].pos;
                         }
-                    } else { // you got something!
+                    } else { // you already got something!
                         // assuming you are at the spawn, let the coffee go :)
                         com[0].update_mask[com_index] = true;
                         com[0].action[com_index] = ACTION_PLACE; // alternatively the unit can fall asleep
@@ -118,11 +118,10 @@ int get_closest_coffee_id(v2 unit_pos, f32 *distance_to_closest_coffee) {
             continue; // ignore if it's already at the spawn
         f32 l = len(coffee_pos - unit_pos);
         if (l < min_len) {
-            target_id = to_id(i); // i + 1
+            target_id = i;
             min_len = l;
         }
     }
-
     if (distance_to_closest_coffee)
         *distance_to_closest_coffee = min_len;
     return target_id;

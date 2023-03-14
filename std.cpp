@@ -98,6 +98,7 @@ void write_file(const char* filename, buffer buf) {
 }
 
 void _assert(const char* func, int line, const char* file) {
+    fprintf(stderr, "assert in % s at % s: % d\n", func, file, line);
     // don't use write_file because of possible nested asserts
     FILE* f = fopen("last_assert.txt", "wb"); // todo: timestamp
     if (file != NULL) {
@@ -147,5 +148,6 @@ i64 tnow() { // nanoseconds since epoch
     return std::chrono::high_resolution_clock::now().time_since_epoch().count();
 }
 void tsleep(i64 nano) {
+    // todo: set timer granularity for windows
     std::this_thread::sleep_for(std::chrono::nanoseconds(nano));
 }
