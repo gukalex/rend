@@ -4,6 +4,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+// oh my
+#include <chrono> // for tnow
+#include <thread> // for tsleep
+#include <math.h>
 
 u8* alloc(u64 size) {
     return (u8*)malloc(size);
@@ -106,4 +110,42 @@ void _assert(const char* func, int line, const char* file) {
     //__debugbreak();
     //#endif
     abort();
+}
+
+m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
+    return { 
+        {2 / (r - l), 0, 0, -(r + l) / (r - l)},
+        {0, 2 / (t - b), 0, -(t + b) / (t - b)},
+        {0, 0, -2 /(f - n), -(f + n) / (f - n)},
+        {0, 0, 0, 1} };
+}
+
+m4 identity() {
+    return {
+        {1, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1} };
+}
+
+f32 len(v2 v) {
+    return { sqrtf(v.x * v.x + v.y * v.y) };
+}
+v2 norm(v2 v) {
+    return v / len(v);
+}
+
+float RN() { return rand() / (float)RAND_MAX; }
+float RNC(f32 b) { return b + RN() * (1.f - 2.f * b); }
+float RNC(f32 b, f32 e) { 
+    f32 range = abs(e - b);
+    f32 start = fminf(b, e);
+    return start + range * RN();
+}
+
+i64 tnow() { // nanoseconds since epoch
+    return std::chrono::high_resolution_clock::now().time_since_epoch().count();
+}
+void tsleep(i64 nano) {
+    std::this_thread::sleep_for(std::chrono::nanoseconds(nano));
 }

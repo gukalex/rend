@@ -1,5 +1,5 @@
 #pragma once
-#include "std.h"
+#include "std.h" // type aliases
 
 /*
 server endpoints:
@@ -99,7 +99,7 @@ enum event_type {
 struct object_state {
     obj_type type = OBJ_NONE;
     obj_state_type st = OBJ_STATE_NONE;
-    u32 obj_id = 0; // from 0 to MAX_INFO
+    u32 obj_id = 0; // from 1 to MAX_OBJ + 1, 0 is reserved
     u8 team_id = NO_TEAM_ID; // NO_TEAM_ID for coffee
     v2 pos = {};
     // todo: add go pos or keep only on the server?

@@ -98,6 +98,16 @@ void post_state_callback(http_response* resp, const char* post_data, u64 post_da
     }
 }
 
+int to_index(int id) { // obj[i].obj_id = i + 1;
+    ASSERT(id != 0 && id <= MAX_OBJ); // 0 id is reserved
+    return id - 1;
+}
+
+int to_id(int index) { // obj[i].obj_id = i + 1;
+    ASSERT(index >= 0 && index < MAX_OBJ);
+    return index + 1;
+}
+
 void init(rend& R) {
     static server_callback cbk[] = { 
         {REQUEST_GET, "/hi", say_hi},
@@ -136,7 +146,7 @@ void init(rend& R) {
         for(int i = 0; i < MAX_TEAMS * MAX_UNIT; i++) {
             obj[i].pobj.type = OBJ_UNIT;
             obj[i].pobj.st = OBJ_STATE_UNIT_IDLE;
-            obj[i].pobj.obj_id = 1 + i; // 0 reserved
+            obj[i].pobj.obj_id = to_id(i);
             obj[i].pobj.team_id = i / 10;
             v2 sl = spawn_loc[obj[i].pobj.team_id];
             obj[i].pobj.pos = { RNC(sl.x - SPAWN_SIZE / 2.f, sl.x + SPAWN_SIZE / 2.f), RNC(sl.y - SPAWN_SIZE / 2.f, sl.y + SPAWN_SIZE / 2.f) };
@@ -148,7 +158,7 @@ void init(rend& R) {
         FOR_SPAWN(i) {
             obj[i].pobj.type = OBJ_SPAWN;
             obj[i].pobj.st = OBJ_STATE_NONE;
-            obj[i].pobj.obj_id = 1 + i; // 0 reserved
+            obj[i].pobj.obj_id = to_id(i);
             obj[i].pobj.team_id = i - MAX_TEAMS * MAX_UNIT;
             obj[i].pobj.pos = spawn_loc[obj[i].pobj.team_id];
             obj[i].pobj.energy = MAX_SPAWN_ENERGY;
@@ -157,7 +167,7 @@ void init(rend& R) {
         FOR_COFF(i) {
             obj[i].pobj.type = OBJ_COFF;
             obj[i].pobj.st = OBJ_STATE_COFF_IDLE;
-            obj[i].pobj.obj_id = 1 + i; // 0 reserved
+            obj[i].pobj.obj_id = to_id(i);
             obj[i].pobj.team_id = NO_TEAM_ID;
             float bo = ARENA_SIZE * 0.3; //border offset;
             obj[i].pobj.pos = { RNC(bo, ARENA_SIZE - bo ), RNC(bo, ARENA_SIZE - bo) };
@@ -165,9 +175,9 @@ void init(rend& R) {
         }
     }
 }
-void push_event(u32 obj_id, event_type ev) {
-    obj[obj_id].pobj.last_events[obj[obj_id].event_index] = ev;
-    obj[obj_id].event_index = (obj[obj_id].event_index + 1) % MAX_LAST_EVENTS;
+void push_event(u32 obj_index, event_type ev) {
+    obj[obj_index].pobj.last_events[obj[obj_index].event_index] = ev;
+    obj[obj_index].event_index = (obj[obj_index].event_index + 1) % MAX_LAST_EVENTS;
 }
 
 u64 frame_count = 0;
@@ -218,8 +228,8 @@ void update(rend& R) {
         update_command com = {};
         com.team_id = 1;
         com.update_mask[1] = true;
-        // find closest COFF
         u32 id = com.team_id * MAX_UNIT + 1;
+        // find closest COFF
         if (obj[id].pobj.target_obj_id) {
             com.action[1] = ACTION_PLACE;    
             commands[0] = com;
@@ -231,7 +241,7 @@ void update(rend& R) {
             FOR_COFF(i) {
                 f32 l = len(obj[i].pobj.pos - obj[id].pobj.pos);
                 if (l < min_len && l < EPS_GRAB) {
-                    target_id = i;
+                    target_id = to_id(i);
                     min_len = l;
                 }
             }
@@ -284,30 +294,30 @@ void update(rend& R) {
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                             continue;
                         }
-                        if (obj[target_id].pobj.st == OBJ_STATE_COFF_TAKEN) { // or != OBJ_IDLE or OBJ_TIRED
+                        if (obj[to_index(target_id)].pobj.st == OBJ_STATE_COFF_TAKEN) { // or != OBJ_IDLE or OBJ_TIRED
                             ob.pobj.reason = REASON_TARGET_TAKEN;
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                             continue;
                         }
-                        f32 l = len(obj[target_id].pobj.pos - ob.pobj.pos);
+                        f32 l = len(obj[to_index(target_id)].pobj.pos - ob.pobj.pos);
                         if (l < EPS_GRAB) {
                             // grab
                             push_event(index, EVENT_GRAB_AQUIRE_SUCCESS);
                             ob.pobj.target_obj_id = target_id;
-                            obj[target_id].pobj.st = OBJ_STATE_COFF_TAKEN;
+                            obj[to_index(target_id)].pobj.st = OBJ_STATE_COFF_TAKEN;
                         } else {
                             ob.pobj.reason = REASON_FAR_AWAY;
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                         }
                     } break;
                     case ACTION_PLACE: {
-                        ob.pobj.target_obj_id = 0;
                         if (target_obj_id) {
                             push_event(index, EVENT_PLACE_SUCCESS);
-                            obj[target_obj_id].pobj.st = OBJ_STATE_COFF_IDLE;
+                            obj[to_index(target_obj_id)].pobj.st = OBJ_STATE_COFF_IDLE;
                         } else {
                             push_event(index, EVENT_NOTHING_TO_PLACE);
                         }
+                        ob.pobj.target_obj_id = 0;
                         ob.pobj.st = OBJ_STATE_UNIT_IDLE;
                     }
                         break;
@@ -315,7 +325,7 @@ void update(rend& R) {
                         push_event(index, EVENT_PUT_TO_SLEEP);
                         ob.pobj.target_obj_id = 0;
                         if (target_obj_id)
-                            obj[target_obj_id].pobj.st = OBJ_STATE_COFF_IDLE;
+                            obj[to_index(target_obj_id)].pobj.st = OBJ_STATE_COFF_IDLE;
                         ob.pobj.st = OBJ_STATE_UNIT_SLEEPING;
                     }
                         break;
@@ -337,7 +347,7 @@ void update(rend& R) {
                 push_event(i, EVENT_PUT_TO_SLEEP);
                 obj[i].pobj.reason = REASON_OUT_OF_ENERGY;
                 obj[i].pobj.target_obj_id = 0;
-                obj[target_id].pobj.st = OBJ_STATE_COFF_IDLE;
+                obj[to_index(target_id)].pobj.st = OBJ_STATE_COFF_IDLE;
                 obj[i].pobj.st = OBJ_STATE_UNIT_SLEEPING;
             }
         }
@@ -351,7 +361,7 @@ void update(rend& R) {
                     // walk in the direction
                     obj[i].pobj.pos += norm(dir) * fd * UNIT_SPEED;
                     if (target_id) {
-                        obj[target_id].pobj.pos += norm(dir) * fd * UNIT_SPEED;
+                        obj[to_index(target_id)].pobj.pos += norm(dir) * fd * UNIT_SPEED;
                     }
                 }
             } break;
