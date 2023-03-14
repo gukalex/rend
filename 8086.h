@@ -235,7 +235,7 @@ void update(rend& R) {
                 else build_add_str(0, curr.reg1, addr, 64, curr.disp);
                 const char* dst = curr.dir ? reg[curr.is_whole][curr.reg0] : addr;
                 const char* src = curr.dir ? addr : reg[curr.is_whole][curr.reg0];
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n\0", curr.desc->asm_name, dst, src);
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n", curr.desc->asm_name, dst, src);
             } break;
             case MOV_MR_TO_MR_8:
             case MOV_MR_TO_MR_16: {
@@ -244,7 +244,7 @@ void update(rend& R) {
                 build_add_str(curr.mod, curr.reg1, addr, 64, curr.disp);
                 const char* dst = curr.dir ? reg[curr.is_whole][curr.reg0] : addr;
                 const char* src = curr.dir ? addr : reg[curr.is_whole][curr.reg0];
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n\0", curr.desc->asm_name, dst, src);
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n", curr.desc->asm_name, dst, src);
             } break;
             case MOV_IM_TO_RR_8:
             case MOV_IM_TO_RR_16: {
@@ -262,14 +262,14 @@ void update(rend& R) {
                 build_add_str(curr.mod, curr.reg1, addr, 64, curr.disp);
                 const char* dst = addr;
                 // todo: byte/word values
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s %d\n\0", curr.desc->asm_name, dst, (curr.is_whole ? "word" : "byte"), (u16)curr.data);
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s %d\n", curr.desc->asm_name, dst, (curr.is_whole ? "word" : "byte"), (u16)curr.data);
             } break;
             case MOV_MAC_TO_MAC: {
                 char addr[64] = { 0 };
                 snprintf(addr, 64, "[%d]", (u16)curr.disp);
                 const char* dst = !curr.dir ? "ax" : addr;
                 const char* src = !curr.dir ? addr : "ax";
-                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n\0", curr.desc->asm_name, dst, src);
+                asm_size = snprintf(tmp_asm, TMP_SIZE, "%s %s, %s\n", curr.desc->asm_name, dst, src);
             } break;
             default: 
                 asm_size = snprintf(tmp_asm, TMP_SIZE, "; oops, unsuported instruction :)\n");
