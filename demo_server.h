@@ -166,11 +166,8 @@ void init(rend& R) {
     }
 }
 void push_event(u32 obj_id, event_type ev) {
-    if (obj[obj_id].event_index >= (MAX_LAST_EVENTS - 1)) {
-        print("max ivents for obj %d", obj_id);
-        obj[obj_id].event_index = 0;
-    }
-    obj[obj_id].pobj.last_events[obj[obj_id].event_index++] = ev;
+    obj[obj_id].pobj.last_events[obj[obj_id].event_index] = ev;
+    obj[obj_id].event_index = (obj[obj_id].event_index + 1) % MAX_LAST_EVENTS;
 }
 
 u64 frame_count = 0;
@@ -179,7 +176,10 @@ void update(rend& R) {
     ImGui::Begin("Server"); defer{ ImGui::End(); };
     static v2 go_pos = { 50, 50 };
     ImGui::SliderFloat2("Go Pos", (f32*)&go_pos, 0, 100);
-    ImGui::Text("[11]: state(%d), target(%d), energy(%f)", obj[11].pobj.st, obj[11].pobj.target_obj_id, obj[11].pobj.energy);
+    ImGui::Text("[11]: state(%d), target(%d), energy(%f), reason(%d)", obj[11].pobj.st, obj[11].pobj.target_obj_id, obj[11].pobj.energy, obj[11].pobj.reason);
+    for (int i = 0; i < MAX_LAST_EVENTS; i++) {
+        ImGui::Text("[11]: event[%d]: %d", i, obj[11].pobj.last_events[i]);
+    }
     FOR_SPAWN(i) {
         u8 team_id = obj[i].pobj.team_id;
         ImGui::Text("%s : %llu", team_names[team_id], score[team_id]);
@@ -210,26 +210,36 @@ void update(rend& R) {
         commands[0] = com;
         unprocessed_commands = 1;
     }
+    if (R.key_pressed('Q')) {
+        update_command com = {};com.team_id=1;com.update_mask[1]=true;com.action[1]=ACTION_SLEEP;
+        commands[0] = com; unprocessed_commands = 1;
+    }
     if (ImGui::Button("Test Grab") || R.key_pressed(' ')) {
         update_command com = {};
         com.team_id = 1;
         com.update_mask[1] = true;
-        com.action[1] = ACTION_GRAB;
         // find closest COFF
         u32 id = com.team_id * MAX_UNIT + 1;
-        u32 target_id = 0;
-        f32 min_len = ARENA_SIZE;
-        FOR_COFF(i) {
-            f32 l = len(obj[i].pobj.pos - obj[id].pobj.pos);
-            if (l < min_len && l < EPS_GRAB) {
-                target_id = i;
-                min_len = l;
-            }
-        }
-        if (target_id) {
-            com.obj_id_target[1] = target_id;
+        if (obj[id].pobj.target_obj_id) {
+            com.action[1] = ACTION_PLACE;    
             commands[0] = com;
             unprocessed_commands = 1;
+        } else {
+            com.action[1] = ACTION_GRAB;
+            u32 target_id = 0;
+            f32 min_len = ARENA_SIZE;
+            FOR_COFF(i) {
+                f32 l = len(obj[i].pobj.pos - obj[id].pobj.pos);
+                if (l < min_len && l < EPS_GRAB) {
+                    target_id = i;
+                    min_len = l;
+                }
+            }
+            if (target_id) {
+                com.obj_id_target[1] = target_id;
+                commands[0] = com;
+                unprocessed_commands = 1;
+            }
         }
     }
     float fd = (R.fd > 1/60.f ? 1/60.f : R.fd); // sould be fixed so we don't freak out on spikes
@@ -324,6 +334,7 @@ void update(rend& R) {
             obj[i].pobj.energy -= fd * GRAB_ENERGY_PER_S;
             if (obj[i].pobj.energy < UNIT_MIN_OPERATIONAL_ENERGY) {
                 push_event(i, EVENT_GRAB_LOST);
+                push_event(i, EVENT_PUT_TO_SLEEP);
                 obj[i].pobj.reason = REASON_OUT_OF_ENERGY;
                 obj[i].pobj.target_obj_id = 0;
                 obj[target_id].pobj.st = OBJ_STATE_COFF_IDLE;
