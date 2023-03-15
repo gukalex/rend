@@ -98,7 +98,7 @@ void write_file(const char* filename, buffer buf) {
 }
 
 void _assert(const char* func, int line, const char* file) {
-    fprintf(stderr, "assert in % s at % s: % d\n", func, file, line);
+    fprintf(stderr, "assert in %s at %s: % d\n", func, file, line);
     // don't use write_file because of possible nested asserts
     FILE* f = fopen("last_assert.txt", "wb"); // todo: timestamp
     if (file != NULL) {
