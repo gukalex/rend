@@ -103,8 +103,8 @@ void init(rend& R) {
     start_server("0.0.0.0", 8080, ARSIZE(cbk), cbk);
     if (!dd.prog) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
-        const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
-        //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        //const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
+        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
         in vec4 vAttr;
@@ -173,9 +173,10 @@ void update(rend& R) {
     ImGui::Begin("Server"); defer{ ImGui::End(); };
     static v2 go_pos = { 50, 50 };
     ImGui::SliderFloat2("Go Pos", (f32*)&go_pos, 0, 100);
-    ImGui::Text("[11]: state(%d), target(%d), energy(%f), reason(%d)", obj[11].st, obj[11].obj_id_target, obj[11].energy, obj[11].reason);
+    int test_id = UNIT_0 + MAX_UNIT + 1;
+    ImGui::Text("[11?]: state(%d), target(%d), energy(%f), reason(%d)", obj[test_id].st, obj[test_id].obj_id_target, obj[test_id].energy, obj[test_id].reason);
     for (int i = 0; i < MAX_LAST_EVENTS; i++) {
-        ImGui::Text("[11]: event[%d]: %d", i, obj[11].last_events[i]);
+        ImGui::Text("[11?]: event[%d]: %d", i, obj[test_id].last_events[i]);
     }
     FOR_SPAWN(i) {
         u8 team_id = obj[i].team_id;
@@ -192,7 +193,7 @@ void update(rend& R) {
     if (mov_dir != prev_mov_dir) {
         update_go = true; // todo: if new direction
         if (mov_dir) mov_dir = norm(mov_dir); // fix diagonal, don't divide by 0
-        go_pos = clamp(obj[11].pos + mov_dir * ARENA_SIZE, { 0,0 }, {ARENA_SIZE, ARENA_SIZE});
+        go_pos = clamp(obj[test_id].pos + mov_dir * ARENA_SIZE, { 0,0 }, {ARENA_SIZE, ARENA_SIZE});
     }
     if (R.key_pressed(KT::MBL)) {
         go_pos = R.mouse_norm() * ARENA_SIZE;
@@ -215,7 +216,7 @@ void update(rend& R) {
         update_command com = {};
         com.team_id = 1;
         com.update_mask[1] = true;
-        u32 id = com.team_id * MAX_UNIT + 1;
+        u32 id = UNIT_0 + com.team_id * MAX_UNIT + 1;
         // find closest COFF
         if (obj[id].obj_id_target) {
             com.action[1] = ACTION_PLACE;    
