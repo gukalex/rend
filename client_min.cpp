@@ -5,7 +5,7 @@ dependencies from the repo (or use conf.sh):
 compile dependencies once: g++ -c http.cpp std.cpp -O3 -std=c++17
 compile this demo: g++ client_min.cpp std.o http.o -O3 -std=c++17 -lpthread
 run (with default parameters): ./a.out 
-run with parameters: ./a.out HOST PORT
+run with parameters: ./a.out team_id [HOST PORT]
 */
 
 #include "std.h" // types, print, alloc/dealloc
