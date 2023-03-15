@@ -17,8 +17,8 @@ run with parameters: ./a.out HOST PORT
 
 using namespace rts; // demo_rts.h
 
-#define DEFAULT_IP "127.0.0.1"
-//#define DEFAULT_IP "10.40.14.40"
+//#define DEFAULT_IP "127.0.0.1"
+#define DEFAULT_IP "10.40.14.40"
 #define DEFAULT_PORT 8080
 
 const char* host = DEFAULT_IP;
@@ -33,11 +33,14 @@ int get_closest_coffee_id(v2 unit_pos, f32 *distance_to_closest_coffee);
 http_error post_command(update_command com);
 
 int main(int argc, char** argv) {
-    if (argc == 3) { // todo: validate input
-        host = argv[1];
-        port = atoi(argv[2]);
-    } else if (argc != 1) {
-        print("usage: host port");
+    if (argc == 4) { // todo: validate input
+        team_id = atoi(argv[1]);
+        host = argv[2];
+        port = atoi(argv[3]);
+    } else if (argc == 2) {
+        team_id = atoi(argv[1]);
+    } else {
+        print("usage: team_id [host] [port]");
         return 1;
     }
 
