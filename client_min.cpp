@@ -46,8 +46,9 @@ int main(int argc, char** argv) {
 
     response_get.data = (c8*)alloc(sizeof(st)); defer{ dealloc(response_get.data); };
     response_get.capacity = response_get.size = sizeof(st);
-    response_post.data = (c8*)alloc(sizeof(update_command)); defer{ dealloc(response_post.data); };
-    response_post.capacity = response_post.size = sizeof(update_command);
+    int response_post_size = 128; // currently post response doesn't return anything useful (only text "Post Ok" or "Post Fail" if server received too many commands per 1 frame)
+    response_post.data = (c8*)alloc(response_post_size); defer{ dealloc(response_post.data); }; //sizeof(update_response)
+    response_post.capacity = response_post.size = response_post_size;
 
     while(true) {
         http_error err = http_get(host, port, "/state", &response_get);
