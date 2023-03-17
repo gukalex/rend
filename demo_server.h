@@ -361,11 +361,11 @@ void update(rend& R) {
                 v2 sp = obj[SPAWN_0 + team_id].pos;
                 if (obj[i].pos >= (sp - SPAWN_SIZE / 2.f) && obj[i].pos <= (sp + SPAWN_SIZE / 2.f))
                     sleep_per_s = SLEEP_ENERGY_AT_BASE_PER_S;
-                obj[i].energy += fd * sleep_per_s;
                 if (obj[i].energy > MAX_UNIT_ENERGY) {
                     obj[i].st = OBJ_STATE_UNIT_IDLE;
                     push_event(i, EVENT_WOKE_UP);
-                }
+                } else
+                    obj[i].energy += fd * sleep_per_s;
             } break;
             default: break;
         }
