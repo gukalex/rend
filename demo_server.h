@@ -5,6 +5,7 @@ namespace demo_server {
 using namespace rts;
 #define SHADER_QUAD 5.0f
 #define SHADER_COFF 4.0f
+#define SHADER_PORT 6.0f
 v2 spawn_loc[MAX_TEAMS] = {
     {10.f, 10.f},
     {90.f, 90.f},
@@ -23,10 +24,6 @@ constexpr v2 portals[2][PORTAL_PAIRS] = {
     {{50.f, 10.f}, {50.f, 90.f}},
     {{10.f, 50.f}, {90.f, 50.f}},
 };
-
-constexpr v4 portal_colors[2][PORTAL_PAIRS] = {
-    {{0, 0, 1, SHADER_QUAD}, {1, 0.5, 0, SHADER_QUAD}},
-    {{1, 0, 0, SHADER_QUAD}, {1, 1, 0, SHADER_QUAD}}};
 
 u64 score[MAX_TEAMS] = {0};
 const char* team_names[MAX_TEAMS] = {"Amogus", "Stefan", "Torbjorn", "Pepe"};
@@ -115,7 +112,7 @@ void init(rend& R) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
         //const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
         //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png", "bkg.jpg" };
-        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png", "portal1.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
         in vec4 vAttr;
@@ -137,7 +134,9 @@ void init(rend& R) {
             else if (vAttr.w == 5) {
                 FragColor.rgba = vec4(vAttr.xyz, 0.25 );
             } else if (vAttr.w == 6) {
-                FragColor.rgba = texture(rend_t5, uv) * alpha;
+                int index = int(vAttr.z);
+                vec4 colors[4] = { vec4(0, 0, 1, 1), vec4(1, 0.5, 0, 1), vec4(1,0,0,1), vec4(1,1,0,1)};
+                FragColor.rgba = texture(rend_t5, uv) * colors[index];
             }
             else
                 FragColor.rgba = vec4(1, 0, 0, 1); // debug
@@ -470,12 +469,15 @@ void update(rend& R) {
         case OBJ_SPAWN:
             R.quad(obj[i].pos - SPAWN_SIZE / 2.f, obj[i].pos + SPAWN_SIZE / 2.f, spawn_color[obj[i].team_id]);
             break;
-        case OBJ_PORTAL:
-            R.quad(obj[i].pos - PORTAL_SIZE / 2.f, obj[i].pos + PORTAL_SIZE / 2.f, portal_colors[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2]);
-            break;
+        case OBJ_PORTAL: {
+            //portal_colors[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2]
+            f32 color_index = i - PORTAL_0;
+            R.quad_t(obj[i].pos - PORTAL_SIZE / 2.f, obj[i].pos + PORTAL_SIZE / 2.f, {color_index, SHADER_PORT});
+        } break;
         default: break;
         }
     }
+
     //R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
     R.submit(dd);
 }
