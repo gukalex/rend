@@ -104,6 +104,7 @@ void init(rend& R) {
     if (!dd.prog) {
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
         //const char* textures[] = {"star.png", "cloud.png", "heart.png", "lightning.png", "res.png"};
+        //const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png", "bkg.jpg" };
         const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
@@ -114,6 +115,7 @@ void init(rend& R) {
         uniform sampler2D rend_t2;
         uniform sampler2D rend_t3;
         uniform sampler2D rend_t4;
+        uniform sampler2D rend_t5;
         void main() {
             vec2 uv = vAttr.xy;
             vec4 alpha = vec4(1,1,1,vAttr.z);
@@ -124,6 +126,8 @@ void init(rend& R) {
             else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv) * alpha;
             else if (vAttr.w == 5) {
                 FragColor.rgba = vec4(vAttr.xyz, 0.25 );
+            } else if (vAttr.w == 6) {
+                FragColor.rgba = texture(rend_t5, uv) * alpha;
             }
             else
                 FragColor.rgba = vec4(1, 0, 0, 1); // debug
@@ -349,7 +353,13 @@ void update(rend& R) {
                     // todo: push event ARRIVED
                 } else {
                     // walk in the direction
-                    obj[i].pos += norm(dir) * fd * UNIT_SPEED;
+                    v2 new_pos = obj[i].pos + norm(dir) * fd * UNIT_SPEED;
+                    if (new_pos != clamp(new_pos, {0,0}, {ARENA_SIZE, ARENA_SIZE})) {
+                        obj[i].st = OBJ_STATE_UNIT_IDLE;
+                        push_event(i, EVENT_GO_FAIL);
+                        obj[i].reason = REASON_OUT_OF_BOUNDS;
+                    }
+                    obj[i].pos = clamp(new_pos,{0,0}, {ARENA_SIZE, ARENA_SIZE});
                     if (target_id) { // move attached object along with it
                         obj[target_id].pos += norm(dir) * fd * UNIT_SPEED;
                     }
@@ -391,6 +401,11 @@ void update(rend& R) {
         memcpy(cur_st.info, obj, sizeof(obj));
     }
 
+    R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
+    // draw grass:
+    //R.quad_t({0,0}, {ARENA_SIZE,ARENA_SIZE}, {1.f, 6}); // 6 - bkg
+    //R.submit(dd);
+
     FOR_OBJ(i) {
         switch (obj[i].type) {
         case OBJ_UNIT: {
@@ -407,7 +422,7 @@ void update(rend& R) {
         default: break;
         }
     }
-    R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
+    //R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
     R.submit(dd);
 }
 }
