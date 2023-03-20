@@ -7,8 +7,8 @@ namespace client {
 using namespace rts;
 
 draw_data dd;
-//char host[32] = "10.40.14.40";
-char host[32] = "127.0.0.1";
+char host[32] = "10.40.14.40";
+//char host[32] = "127.0.0.1";
 int port = 8080;
 const u64 DATA_SIZE = 1024 * 1024 * 1024;
 buffer_ex data;
@@ -18,33 +18,35 @@ void init(rend &R) {
         data = { (c8*)alloc(DATA_SIZE), 0, DATA_SIZE };
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
         //const char* textures[] = { "star.png", "cloud.png", "heart.png", "lightning.png", "res.png" };
-        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png" };
+        const char* textures[] = { "amogus.png", "din.jpg", "pool.png", "pepe.png", "coffee.png", "portal1.png" };
         for (int i = 0; i < ARSIZE(textures); i++) R.textures[R.curr_tex++] = dd.tex[i] = R.texture(textures[i]);
         R.progs[R.curr_progs++] = dd.prog = R.shader(R.vs_quad, R"(#version 450 core
-            in vec4 vAttr;
-            out vec4 FragColor;
-            uniform sampler2D rend_t0;
-            uniform sampler2D rend_t1;
-            uniform sampler2D rend_t2;
-            uniform sampler2D rend_t3;
-            uniform sampler2D rend_t4;
-            uniform sampler2D rend_t5;
-            void main() {
-                vec2 uv = vAttr.xy;
-                vec4 alpha = vec4(1,1,1,vAttr.z);
-                if (vAttr.w == 0) FragColor.rgba = texture(rend_t0, uv) * alpha;
-                else if (vAttr.w == 1) FragColor.rgba = texture(rend_t1, uv) * alpha;
-                else if (vAttr.w == 2) FragColor.rgba = texture(rend_t2, uv) * alpha;
-                else if (vAttr.w == 3) FragColor.rgba = texture(rend_t3, uv) * alpha;
-                else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv) * alpha;
-                else if (vAttr.w == 5) {
-                    FragColor.rgba = vec4(vAttr.xyz, 0.25 );
-                } else if (vAttr.w == 6) {
-                    FragColor.rgba = texture(rend_t5, uv) * alpha;
-                }
-                else
-                    FragColor.rgba = vec4(1, 0, 0, 1); // debug
-            })");
+        in vec4 vAttr;
+        out vec4 FragColor;
+        uniform sampler2D rend_t0;
+        uniform sampler2D rend_t1;
+        uniform sampler2D rend_t2;
+        uniform sampler2D rend_t3;
+        uniform sampler2D rend_t4;
+        uniform sampler2D rend_t5;
+        void main() {
+            vec2 uv = vAttr.xy;
+            vec4 alpha = vec4(1,1,1,vAttr.z);
+            if (vAttr.w == 0) FragColor.rgba = texture(rend_t0, uv) * alpha;
+            else if (vAttr.w == 1) FragColor.rgba = texture(rend_t1, uv) * alpha;
+            else if (vAttr.w == 2) FragColor.rgba = texture(rend_t2, uv) * alpha;
+            else if (vAttr.w == 3) FragColor.rgba = texture(rend_t3, uv) * alpha;
+            else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv) * alpha;
+            else if (vAttr.w == 5) {
+                FragColor.rgba = vec4(vAttr.xyz, 0.25 );
+            } else if (vAttr.w == 6) {
+                int index = int(vAttr.z);
+                vec4 colors[4] = { vec4(0, 0, 1, 1), vec4(1, 0.5, 0, 1), vec4(1,0,0,1), vec4(1,1,0,1)};
+                FragColor.rgba = texture(rend_t5, uv) * colors[index];
+            }
+            else
+                FragColor.rgba = vec4(1, 0, 0, 1); // debug
+        })");
     }
 }
 
@@ -159,6 +161,7 @@ void update(rend &R) {
 
     #define SHADER_QUAD 5.0f
     #define SHADER_COFF 4.0f
+    #define SHADER_PORT 6.0f
     v4 spawn_color[MAX_TEAMS] = {
         // w reserved for shader id
         {1, 0, 0, SHADER_QUAD},
@@ -166,10 +169,6 @@ void update(rend &R) {
         {1, 0, 1, SHADER_QUAD},
         {1, 0, 1, SHADER_QUAD},
     };
-    constexpr v4 portal_colors[2][PORTAL_PAIRS] = {
-    {{0, 0, 1, SHADER_QUAD}, {1, 0.5, 0, SHADER_QUAD}},
-    {{1, 0, 0, SHADER_QUAD}, {1, 1, 0, SHADER_QUAD}}};
-
     /*
     FOR_OBJ(i) {
         switch (obj[i].type) {
@@ -203,9 +202,10 @@ void update(rend &R) {
         case OBJ_SPAWN:
             R.quad(obj.pos - SPAWN_SIZE / 2.f, obj.pos + SPAWN_SIZE / 2.f, spawn_color[obj.team_id]);
             break;
-        case OBJ_PORTAL:
-            R.quad(obj.pos - PORTAL_SIZE / 2.f, obj.pos + PORTAL_SIZE / 2.f, portal_colors[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2]);
-            break;
+        case OBJ_PORTAL: {
+            f32 color_index = i - PORTAL_0;
+            R.quad_t(obj.pos - PORTAL_SIZE / 2.f, obj.pos + PORTAL_SIZE / 2.f, {color_index, SHADER_PORT});
+        } break;
         default: break;
         }
     }
