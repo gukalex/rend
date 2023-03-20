@@ -56,7 +56,7 @@ int main(void) {
     #endif
     R.init();
     
-    int curr_demo = 2;
+    int curr_demo = 4;
     demos[curr_demo].init(R);
 
     i64 timer_start = tnow();

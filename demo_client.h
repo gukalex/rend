@@ -27,15 +27,19 @@ void init(rend &R) {
             uniform sampler2D rend_t2;
             uniform sampler2D rend_t3;
             uniform sampler2D rend_t4;
+            uniform sampler2D rend_t5;
             void main() {
                 vec2 uv = vAttr.xy;
-                if (vAttr.w == 0) FragColor.rgba = texture(rend_t0, uv);
-                else if (vAttr.w == 1) FragColor.rgba = texture(rend_t1, uv);
-                else if (vAttr.w == 2) FragColor.rgba = texture(rend_t2, uv);
-                else if (vAttr.w == 3) FragColor.rgba = texture(rend_t3, uv);
-                else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv);
+                vec4 alpha = vec4(1,1,1,vAttr.z);
+                if (vAttr.w == 0) FragColor.rgba = texture(rend_t0, uv) * alpha;
+                else if (vAttr.w == 1) FragColor.rgba = texture(rend_t1, uv) * alpha;
+                else if (vAttr.w == 2) FragColor.rgba = texture(rend_t2, uv) * alpha;
+                else if (vAttr.w == 3) FragColor.rgba = texture(rend_t3, uv) * alpha;
+                else if (vAttr.w == 4) FragColor.rgba = texture(rend_t4, uv) * alpha;
                 else if (vAttr.w == 5) {
                     FragColor.rgba = vec4(vAttr.xyz, 0.25 );
+                } else if (vAttr.w == 6) {
+                    FragColor.rgba = texture(rend_t5, uv) * alpha;
                 }
                 else
                     FragColor.rgba = vec4(1, 0, 0, 1); // debug
@@ -82,7 +86,7 @@ void update(rend &R) {
         print("here %s, time: %f", data.data, sec(tnow() - ts));
     }
 
-    static bool always_on = false; Checkbox("Always On", &always_on);
+    static bool always_on = true; Checkbox("Always On", &always_on);
     static rts::current_state cs = {};
     static f32 time = 0;
     static char strup[128] = { 0 };
@@ -161,16 +165,37 @@ void update(rend &R) {
         {1, 0, 1, SHADER_QUAD},
         {1, 0, 1, SHADER_QUAD},
     };
+
+    /*
+    FOR_OBJ(i) {
+        switch (obj[i].type) {
+        case OBJ_UNIT: {
+            f32 alpha_level = (obj[i].st == OBJ_STATE_UNIT_SLEEPING ? 0.2f : 1.0f);
+            R.quad_t(obj[i].pos - UNIT_SIZE / 2.f, obj[i].pos + UNIT_SIZE / 2.f, { alpha_level, (f32)obj[i].team_id });
+        } break;
+        case OBJ_COFF: {
+            f32 alpha_level = (obj[i].st == OBJ_STATE_COFF_TAKEN ? 0.2f : 1.0f);
+            R.quad_t(obj[i].pos - MAX_COFF_SIZE / 2.f, obj[i].pos + MAX_COFF_SIZE / 2.f, { alpha_level, SHADER_COFF });
+        } break;
+        case OBJ_SPAWN:
+            R.quad(obj[i].pos - SPAWN_SIZE / 2.f, obj[i].pos + SPAWN_SIZE / 2.f, spawn_color[obj[i].team_id]);
+            break;
+        default: break;
+        }
+    }
+    */
+
     for (int i = 0; i < cs.info_size; i++) { // todo: move to demo_rts.h
         object_state& obj = cs.info[i];
         switch (obj.type) {
-        case OBJ_UNIT:
-            R.quad_t(obj.pos - UNIT_SIZE / 2.f, obj.pos + UNIT_SIZE / 2.f, { 0.f, (f32)obj.team_id });
-            break;
-        case OBJ_COFF:
-            // todo: if grabbed - draw with transparent alpha
-            R.quad_t(obj.pos - MAX_COFF_SIZE / 2.f, obj.pos + MAX_COFF_SIZE / 2.f, { 0.f, SHADER_COFF });
-            break;
+        case OBJ_UNIT: {
+            f32 alpha_level = (obj.st == OBJ_STATE_UNIT_SLEEPING ? 0.2f : 1.0f);
+            R.quad_t(obj.pos - UNIT_SIZE / 2.f, obj.pos + UNIT_SIZE / 2.f, { alpha_level, (f32)obj.team_id });
+        } break;
+        case OBJ_COFF: {
+            f32 alpha_level = (obj.st == OBJ_STATE_COFF_TAKEN ? 0.2f : 1.0f);
+            R.quad_t(obj.pos - MAX_COFF_SIZE / 2.f, obj.pos + MAX_COFF_SIZE / 2.f, { alpha_level, SHADER_COFF });
+        } break;
         case OBJ_SPAWN:
             R.quad(obj.pos - SPAWN_SIZE / 2.f, obj.pos + SPAWN_SIZE / 2.f, spawn_color[obj.team_id]);
             break;

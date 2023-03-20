@@ -66,6 +66,7 @@ struct buffer {
 float RN(); // random normalized 
 float RNC(f32 b); // random normalized with border(??) todo: remove, use the one below
 float RNC(f32 b, f32 e); // random in the range from b to e
+int RNC(i32 b, i32 e); // random int in the range
 
 i64 tnow(); // current time since epoch in nanosec
 void tsleep(i64 nano); // sleep 

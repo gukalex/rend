@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
 
 int get_closest_coffee_id(v2 unit_pos, f32 *distance_to_closest_coffee) {
     u32 target_id = 0;
-    f32 min_len = ARENA_SIZE;
+    f32 min_len = 2.f * ARENA_SIZE;
     FOR_COFF(i) {
         v2 coffee_pos = st.info[i].pos;
         v2 spawn_pos = st.info[SPAWN_0 + team_id].pos;

@@ -143,6 +143,12 @@ float RNC(f32 b, f32 e) {
     f32 start = fminf(b, e);
     return start + range * RN();
 }
+int RNC(i32 b, i32 e) {
+    f32 n = RN();
+    i32 range = abs(e - b);
+    i32 start = MIN(b, e);
+    return start + (i32)(range * RN());
+}
 
 i64 tnow() { // nanoseconds since epoch
     return std::chrono::high_resolution_clock::now().time_since_epoch().count();
