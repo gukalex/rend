@@ -18,6 +18,16 @@ v4 spawn_color[MAX_TEAMS] = {
     {1, 0, 1, SHADER_QUAD},
     {1, 0, 1, SHADER_QUAD},
 };
+
+constexpr v2 portals[2][PORTAL_PAIRS] = {
+    {{50.f, 10.f}, {50.f, 90.f}},
+    {{10.f, 50.f}, {90.f, 50.f}},
+};
+
+constexpr v4 portal_colors[2][PORTAL_PAIRS] = {
+    {{0, 0, 1, SHADER_QUAD}, {1, 0.5, 0, SHADER_QUAD}},
+    {{1, 0, 0, SHADER_QUAD}, {1, 1, 0, SHADER_QUAD}}};
+
 u64 score[MAX_TEAMS] = {0};
 const char* team_names[MAX_TEAMS] = {"Amogus", "Stefan", "Torbjorn", "Pepe"};
 object_state obj[MAX_OBJ];
@@ -164,6 +174,17 @@ void init(rend& R) {
             obj[i].pos = { RNC(bo, ARENA_SIZE - bo ), RNC(bo, ARENA_SIZE - bo) };
             obj[i].energy = MAX_COFF_ENERGY;
         }
+        // init portals
+        FOR_PORTAL(i)
+        {
+            obj[i].type = OBJ_PORTAL;
+            obj[i].st = OBJ_STATE_NONE;
+            obj[i].obj_id = i;
+            obj[i].team_id = NO_TEAM_ID;
+            obj[i].pos = portals[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2];
+            obj[i].energy = MAX_UNIT_ENERGY;
+            obj[i].obj_id_target = (i - PORTAL_0) % 2 == 0 ? i + 1 : i - 1; // surely better way to do that
+        }
     }
 }
 void push_event(u32 obj_index, event_type ev) {
@@ -244,6 +265,14 @@ void update(rend& R) {
             }
         }
     }
+    if (ImGui::Button("Test Teleport")) {
+        update_command com = {};
+        com.team_id = 1;
+        com.update_mask[1] = true;
+        com.action[1] = rts::ACTION_TELEPORT;
+        commands[0] = com;
+        unprocessed_commands = 1;
+    }
     float fd = (R.fd > 1/60.f ? 1/60.f : R.fd); // sould be fixed so we don't freak out on spikes
     frame_count++;
     
@@ -322,6 +351,28 @@ void update(rend& R) {
                         ob.st = OBJ_STATE_UNIT_SLEEPING;
                     }
                         break;
+                    case ACTION_TELEPORT: {
+                        int portal = 0;
+                        FOR_PORTAL(i)
+                        {
+                            f32 l = len(ob.pos - obj[i].pos);
+                            if (l < EPS_PORTAL)
+                                break;
+                            portal++;
+                        }
+                        if (portal == MAX_PORTAL) {
+                            push_event(index, EVENT_TELEPORT_FAIL);
+                        } else {
+                            push_event(index, EVENT_TELEPORT_SUCCESS);
+                            object_state &obj_portal = obj[portal + PORTAL_0];
+                            v2 translate = ob.pos - obj_portal.pos;
+                            v2 pos = obj[obj_portal.obj_id_target].pos + translate;
+                            ob.pos = pos;
+                            if (obj_id_target)
+                                obj[obj_id_target].pos = pos;
+                        }
+                    }
+                        break;
                     default: break;
                     }
                 }
@@ -330,7 +381,7 @@ void update(rend& R) {
         buf_unprocessed_commands = 0;
     }
 
-    FOR_OBJ(i) {
+    FOR_UNIT(i) {
         // decrease energy while holding the target
         u32 target_id = obj[i].obj_id_target;
         if (target_id) {
@@ -418,6 +469,9 @@ void update(rend& R) {
         } break;
         case OBJ_SPAWN:
             R.quad(obj[i].pos - SPAWN_SIZE / 2.f, obj[i].pos + SPAWN_SIZE / 2.f, spawn_color[obj[i].team_id]);
+            break;
+        case OBJ_PORTAL:
+            R.quad(obj[i].pos - PORTAL_SIZE / 2.f, obj[i].pos + PORTAL_SIZE / 2.f, portal_colors[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2]);
             break;
         default: break;
         }

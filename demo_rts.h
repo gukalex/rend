@@ -35,7 +35,6 @@ constexpr f32 UNIT_SPEED = ARENA_SIZE / 10.f;
 constexpr int MAX_UNIT = 10; // per team
 constexpr int MAX_TEAMS = 4;
 constexpr int MAX_COFF = 10;
-constexpr int MAX_OBJ = ((MAX_UNIT* MAX_TEAMS) + MAX_TEAMS + MAX_COFF) + 1; // + 1 for the empty object at index 0
 constexpr int UNIT_0 = 1;
 constexpr int SPAWN_0 = UNIT_0 + (MAX_UNIT * MAX_TEAMS);
 constexpr int COFF_0 = SPAWN_0 + MAX_TEAMS;
@@ -46,15 +45,26 @@ constexpr int MAGIC_UPDATE_COMMAND = 0xBABEEEEE;
 constexpr int VERSION_CURRENT_STATE = 1;
 constexpr int VERSION_UPDATE_COMMAND = 1;
 
+constexpr int PORTAL_PAIRS = 2; // per team
+constexpr int MAX_PORTAL = PORTAL_PAIRS * 2; // per team
+constexpr f32 PORTAL_SIZE = 4.f; // per team
+constexpr f32 EPS_PORTAL = PORTAL_SIZE; // per team
+constexpr int PORTAL_0 = COFF_0 + MAX_COFF;
+
+constexpr int MAX_OBJ = ((MAX_UNIT* MAX_TEAMS) + MAX_TEAMS + MAX_COFF + MAX_PORTAL) + 1; // + 1 for the empty object at index 0
+
 #define FOR_OBJ(i) for (int i = 1; i < MAX_OBJ; i++)
-#define FOR_SPAWN(i) for (int i = SPAWN_0; i <SPAWN_0 + MAX_TEAMS; i++)
+#define FOR_UNIT(i) for (int i = UNIT_0; i < UNIT_0 + MAX_UNIT * MAX_TEAMS; i++)
+#define FOR_SPAWN(i) for (int i = SPAWN_0; i < SPAWN_0 + MAX_TEAMS; i++)
 #define FOR_COFF(i) for (int i = COFF_0; i < COFF_0 + MAX_COFF; i++)
+#define FOR_PORTAL(i) for (int i = PORTAL_0; i < PORTAL_0 + MAX_PORTAL; i++)
 
 enum obj_type {
     OBJ_NONE, // object 0
     OBJ_UNIT, // both self and enemy
     OBJ_COFF,
-    OBJ_SPAWN // both self and enemy
+    OBJ_SPAWN, // both self and enemy
+    OBJ_PORTAL
 };
 enum obj_state_type {
     OBJ_STATE_NONE,
@@ -74,6 +84,7 @@ enum action_type {
     ACTION_GO,
     ACTION_PLACE,
     ACTION_SLEEP,
+    ACTION_TELEPORT,
     // action force wake up?
 };
 enum reason_type {
@@ -95,6 +106,8 @@ enum event_type {
     EVENT_GO_FAIL, // out of bounds position
     EVENT_WOKE_UP,
     EVENT_PUT_TO_SLEEP,
+    EVENT_TELEPORT_SUCCESS,
+    EVENT_TELEPORT_FAIL,
 };
 struct object_state {
     obj_type type = OBJ_NONE;

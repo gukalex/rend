@@ -7,7 +7,8 @@ namespace client {
 using namespace rts;
 
 draw_data dd;
-char host[32] = "10.40.14.40";
+//char host[32] = "10.40.14.40";
+char host[32] = "127.0.0.1";
 int port = 8080;
 const u64 DATA_SIZE = 1024 * 1024 * 1024;
 buffer_ex data;
@@ -165,6 +166,9 @@ void update(rend &R) {
         {1, 0, 1, SHADER_QUAD},
         {1, 0, 1, SHADER_QUAD},
     };
+    constexpr v4 portal_colors[2][PORTAL_PAIRS] = {
+    {{0, 0, 1, SHADER_QUAD}, {1, 0.5, 0, SHADER_QUAD}},
+    {{1, 0, 0, SHADER_QUAD}, {1, 1, 0, SHADER_QUAD}}};
 
     /*
     FOR_OBJ(i) {
@@ -198,6 +202,9 @@ void update(rend &R) {
         } break;
         case OBJ_SPAWN:
             R.quad(obj.pos - SPAWN_SIZE / 2.f, obj.pos + SPAWN_SIZE / 2.f, spawn_color[obj.team_id]);
+            break;
+        case OBJ_PORTAL:
+            R.quad(obj.pos - PORTAL_SIZE / 2.f, obj.pos + PORTAL_SIZE / 2.f, portal_colors[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2]);
             break;
         default: break;
         }
