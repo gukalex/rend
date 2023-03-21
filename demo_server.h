@@ -420,7 +420,8 @@ void update(rend& R) {
                     }
                     obj[i].pos = clamp(new_pos,{0,0}, {ARENA_SIZE, ARENA_SIZE});
                     if (target_id) { // move attached object along with it
-                        obj[target_id].pos += norm(dir) * fd * UNIT_SPEED;
+                        v2 obj_new_pos = obj[target_id].pos + norm(dir) * fd * UNIT_SPEED;
+                        obj[target_id].pos = clamp(obj_new_pos, {0,0}, {ARENA_SIZE, ARENA_SIZE});
                     }
                 }
             } break;
