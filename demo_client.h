@@ -196,7 +196,7 @@ void update(rend &R) {
             R.quad_t(obj.pos - UNIT_SIZE / 2.f, obj.pos + UNIT_SIZE / 2.f, { alpha_level, (f32)obj.team_id });
         } break;
         case OBJ_COFF: {
-            f32 size = clamp(obj[i].energy / MAX_COFF_ENERGY, 0.1f, 1.0f);
+            f32 size = clamp(obj.energy / MAX_COFF_ENERGY, 0.1f, 1.0f);
             f32 alpha_level = (obj.st == OBJ_STATE_COFF_TAKEN ? 0.2f : 1.0f);
             R.quad_t(obj.pos - MAX_COFF_SIZE * size / 2.f, obj.pos + MAX_COFF_SIZE * size / 2.f, { alpha_level, SHADER_COFF });
         } break;
