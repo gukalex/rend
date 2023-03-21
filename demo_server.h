@@ -1,3 +1,7 @@
+/*
+TODO:
+* validation (ids in the update command at least)
+*/
 #include "demo_rts.h"
 #include "rend.h"
 #include <mutex>
@@ -368,7 +372,10 @@ void update(rend& R) {
                             push_event(index, EVENT_TELEPORT_SUCCESS);
                             object_state &obj_portal = obj[portal + PORTAL_0];
                             v2 translate = ob.pos - obj_portal.pos;
-                            ob.pos = obj[com.obj_id_target[j]].pos + translate;
+                            int target = com.obj_id_target[j];
+                            if (target < PORTAL_0 || target >= PORTAL_0 + MAX_PORTAL)
+                                target = RNC(1, MAX_OBJ - 1);
+                            ob.pos = obj[target].pos + translate;
                             if (obj_id_target)
                                 obj[obj_id_target].pos = ob.pos;
                         }
