@@ -20,9 +20,11 @@ v4 spawn_color[MAX_TEAMS] = {
     {1, 0, 1, SHADER_QUAD},
 };
 
-constexpr v2 portals[2][PORTAL_PAIRS] = {
-    {{50.f, 10.f}, {50.f, 90.f}},
-    {{10.f, 50.f}, {90.f, 50.f}},
+constexpr v2 portals_loc[MAX_PORTAL] = {
+    {50.f, 10.f},
+    {50.f, 90.f},
+    {10.f, 50.f},
+    {90.f, 50.f},
 };
 
 u64 score[MAX_TEAMS] = {0};
@@ -180,9 +182,8 @@ void init(rend& R) {
             obj[i].st = OBJ_STATE_NONE;
             obj[i].obj_id = i;
             obj[i].team_id = NO_TEAM_ID;
-            obj[i].pos = portals[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2];
+            obj[i].pos = portals_loc[i - PORTAL_0];
             obj[i].energy = MAX_UNIT_ENERGY;
-            obj[i].obj_id_target = (i - PORTAL_0) % 2 == 0 ? i + 1 : i - 1; // surely better way to do that
         }
     }
 }
@@ -192,6 +193,7 @@ void push_event(u32 obj_index, event_type ev) {
 }
 
 u64 frame_count = 0;
+u64 test_tp_portal = 0;
 void update(rend& R) {
     // todo: flag to update in the background so I can switch between demos and expect the server to update
     ImGui::Begin("Server"); defer{ ImGui::End(); };
@@ -269,6 +271,7 @@ void update(rend& R) {
         com.team_id = 1;
         com.update_mask[1] = true;
         com.action[1] = rts::ACTION_TELEPORT;
+        com.obj_id_target[1] = PORTAL_0 + test_tp_portal++ % MAX_PORTAL;
         commands[0] = com;
         unprocessed_commands = 1;
     }
@@ -365,10 +368,9 @@ void update(rend& R) {
                             push_event(index, EVENT_TELEPORT_SUCCESS);
                             object_state &obj_portal = obj[portal + PORTAL_0];
                             v2 translate = ob.pos - obj_portal.pos;
-                            v2 pos = obj[obj_portal.obj_id_target].pos + translate;
-                            ob.pos = pos;
+                            ob.pos = obj[com.obj_id_target[j]].pos + translate;
                             if (obj_id_target)
-                                obj[obj_id_target].pos = pos;
+                                obj[obj_id_target].pos = ob.pos;
                         }
                     }
                         break;

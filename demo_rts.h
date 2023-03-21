@@ -45,8 +45,7 @@ constexpr int MAGIC_UPDATE_COMMAND = 0xBABEEEEE;
 constexpr int VERSION_CURRENT_STATE = 1;
 constexpr int VERSION_UPDATE_COMMAND = 1;
 
-constexpr int PORTAL_PAIRS = 2; // per team
-constexpr int MAX_PORTAL = PORTAL_PAIRS * 2; // per team
+constexpr int MAX_PORTAL = 4; // per team
 constexpr f32 PORTAL_SIZE = 4.f; // per team
 constexpr f32 EPS_PORTAL = PORTAL_SIZE; // per team
 constexpr int PORTAL_0 = COFF_0 + MAX_COFF;
@@ -109,6 +108,7 @@ enum event_type {
     EVENT_TELEPORT_SUCCESS,
     EVENT_TELEPORT_FAIL,
 };
+
 struct object_state {
     obj_type type = OBJ_NONE;
     obj_state_type st = OBJ_STATE_NONE;
