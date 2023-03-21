@@ -443,10 +443,18 @@ void update(rend& R) {
     // score
     FOR_COFF(i) {
         v2 cp = obj[i].pos;
+        if (obj[i].st == OBJ_STATE_COFF_TAKEN) continue;
         FOR_SPAWN(j) {
             v2 sp = obj[j].pos;
             if (cp >= (sp - SPAWN_SIZE / 2.f) && cp <= (sp + SPAWN_SIZE / 2.f)) {
                 score[obj[j].team_id]++;
+                obj[i].energy -= 1.f ;
+                if (obj[i].energy < 0.f) {
+                    // respawn
+                    float bo = ARENA_SIZE * 0.3; //border offset;
+                    obj[i].pos = { RNC(bo, ARENA_SIZE - bo ), RNC(bo, ARENA_SIZE - bo) };
+                    obj[i].energy = MAX_COFF_ENERGY;
+                }
             }
         }
     }
