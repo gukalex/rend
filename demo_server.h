@@ -480,8 +480,9 @@ void update(rend& R) {
             R.quad_t(obj[i].pos - UNIT_SIZE / 2.f, obj[i].pos + UNIT_SIZE / 2.f, { alpha_level, (f32)obj[i].team_id });
         } break;
         case OBJ_COFF: {
+            f32 size = clamp(obj[i].energy / MAX_COFF_ENERGY, 0.1f, 1.0f);
             f32 alpha_level = (obj[i].st == OBJ_STATE_COFF_TAKEN ? 0.2f : 1.0f);
-            R.quad_t(obj[i].pos - MAX_COFF_SIZE / 2.f, obj[i].pos + MAX_COFF_SIZE / 2.f, { alpha_level, SHADER_COFF });
+            R.quad_t(obj[i].pos - MAX_COFF_SIZE * size / 2.f, obj[i].pos + MAX_COFF_SIZE * size / 2.f, { alpha_level, SHADER_COFF });
         } break;
         case OBJ_SPAWN:
             R.quad(obj[i].pos - SPAWN_SIZE / 2.f, obj[i].pos + SPAWN_SIZE / 2.f, spawn_color[obj[i].team_id]);
