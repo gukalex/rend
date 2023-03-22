@@ -37,8 +37,7 @@ void do_coro(rend& R) {
         } CR_END
         target = (target == start_pos ? v2{ -start_pos.x, start_pos.y } : start_pos);
         while (len(pos - target) > 0.001f) {
-            v2 dir = norm(target - pos);
-            pos += dir * R.fd;
+            pos += norm(target - pos) * R.fd;
             CR_YIELD();
         }
         CR_RESET();
@@ -76,8 +75,7 @@ void do_switch(rend& R) {
         }
         break;
     case STATE_MOVE: {
-        v2 dir = norm(target - pos);
-        pos += dir * R.fd;
+        pos += norm(target - pos) * R.fd;
         if (len(pos - target) < 0.001f) {
             st = STATE_IDLE;
         }

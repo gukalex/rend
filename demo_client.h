@@ -13,8 +13,13 @@ int port = 8080;
 const u64 DATA_SIZE = 1024 * 1024 * 1024;
 buffer_ex data;
 
+// debug state
+constexpr int MAX_DEBUG_FRAMES = 2000;// 1 state is around 3KB, so 2000 is only several sMBs
+current_state *cst;
+
 void init(rend &R) {
     if (!data.data) {
+        cst = (current_state*)alloc(sizeof(current_state) * MAX_DEBUG_FRAMES);
         data = { (c8*)alloc(DATA_SIZE), 0, DATA_SIZE };
         dd.p = ortho(0, ARENA_SIZE, 0, ARENA_SIZE);
         //const char* textures[] = { "star.png", "cloud.png", "heart.png", "lightning.png", "res.png" };
@@ -55,7 +60,6 @@ void post_command(update_command com) {
         print("error doing post request");
     } else {
         if (memcmp(data.data, "Post Ok", sizeof("Post Ok")) == 0) {
-            print("Post good");
         } else {
             print("Post bad");
         }
@@ -103,10 +107,49 @@ void update(rend &R) {
         } else if (!data.data) {
             print("empty_data");
         } else {
-            print("work, size: %d", data.size);
             memcpy(&cs, data.data, sizeof(cs));
         }
     }
+
+    {
+        static int ccst = 0;
+        static bool recording = false;
+        if (!recording && ImGui::Button("Record State")) {
+            recording = true;
+        } else {
+            ImGui::Text("Recording frame %d out of %d", ccst, MAX_DEBUG_FRAMES);
+        }
+        if (recording) {
+            cst[ccst++] = cs;
+            if (ccst == MAX_DEBUG_FRAMES) {
+                ccst = 0;
+                recording = 0;
+            }
+        }
+
+        static int debug_state = 0;
+        static bool override = false;
+        ImGui::Checkbox("Override", &override); if (override) cs = cst[debug_state];
+        ImGui::SliderInt("Frame", &debug_state, 0, MAX_DEBUG_FRAMES - 1);
+        // print cs info
+        if (ImGui::CollapsingHeader("Inpsect State")) {
+            FOR_OBJ(i) {
+                char str[8];
+                snprintf(str, 8, "%d", i);
+                if (ImGui::CollapsingHeader(str)) {
+                    current_state cs = cst[debug_state];
+                    v2 unit_pos = cs.info[i].pos;
+                    auto isl = [cei=cs.info[i].event_index](int ei){ return (ei == cei ? '*' : ' ');};
+                    ImGui::TextWrapped("%d - pos(%f %f)\nevent_index %d e[%c0] %d, e[%c1] %d, e[%c2] %d, e[%c3] %d\nreason %d\ntarget[%d]\nenergy[%f]\nst[%d]\ngopos[%f %f]\nteamid[%d]",
+                                    i,  cs.info[i].pos.x, cs.info[i].pos.y, cs.info[i].event_index, isl(0),cs.info[i].last_events[0], 
+                                    isl(1), cs.info[i].last_events[1], isl(2), cs.info[i].last_events[2], isl(3),cs.info[i].last_events[3],
+                                    cs.info[i].reason, cs.info[i].obj_id_target, cs.info[i].energy, cs.info[i].st, cs.info[i].go_target.x, cs.info[i].go_target.y, cs.info[i].team_id);
+            
+                }
+            }
+        }
+    }
+
     Text("Server frame: %llu", cs.frame_count);
     Text("Unit 11 pos: %f %f, time: %f", cs.info[11].pos.x, cs.info[11].pos.y, time);
     static char str[128] = { 0 };
