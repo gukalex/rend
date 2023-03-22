@@ -204,7 +204,7 @@ void update(rend &R) {
             R.quad(obj.pos - SPAWN_SIZE / 2.f, obj.pos + SPAWN_SIZE / 2.f, spawn_color[obj.team_id]);
             break;
         case OBJ_PORTAL: {
-            f32 color_index = i - PORTAL_0;
+            f32 color_index = (f32)(i - PORTAL_0);
             R.quad_t(obj.pos - PORTAL_SIZE / 2.f, obj.pos + PORTAL_SIZE / 2.f, {color_index, SHADER_PORT});
         } break;
         default: break;

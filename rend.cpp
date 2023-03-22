@@ -400,6 +400,12 @@ void rend::quad_t(v2 lb, v2 rt, v2 attr) {
     quad_a(lb, rt, base_attr);
 }
 
+void rend::quad_s(v2 center, f32 size, v4 c) {
+    v2 lb = center - size / 2.f;
+    v2 rt = center + size / 2.f;
+    quad(lb, rt, c);
+}
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     rend* R = (rend*)glfwGetWindowUserPointer(window);
     R->wh.x = width;

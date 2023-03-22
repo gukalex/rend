@@ -2,6 +2,7 @@
 TODO:
 * validation (ids in the update command at least)
 */
+#pragma once
 #include "demo_rts.h"
 #include "rend.h"
 #include <mutex>
@@ -490,7 +491,7 @@ void update(rend& R) {
             break;
         case OBJ_PORTAL: {
             //portal_colors[(i - PORTAL_0) / 2][(i - PORTAL_0) % 2]
-            f32 color_index = i - PORTAL_0;
+            f32 color_index = (f32)(i - PORTAL_0);
             R.quad_t(obj[i].pos - PORTAL_SIZE / 2.f, obj[i].pos + PORTAL_SIZE / 2.f, {color_index, SHADER_PORT});
         } break;
         default: break;

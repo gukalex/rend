@@ -120,4 +120,16 @@ struct rend {
     void quad(v2 lb, v2 rt, v4 c); // 0-1
     void quad_a(v2 lb, v2 rt, v4 attr[4]);
     void quad_t(v2 lb, v2 rt, v2 attr);
+
+    void quad_s(v2 center, f32 size, v4 c);
 };
+
+// color constants
+
+namespace C {
+constexpr v4 BLACK = { 0.f,0.f,0.f,1.f }; // alpha = 1
+constexpr v4 WHITE = { 1.f,1.f,1.f,1.f };
+constexpr v4 RED   = { 1.f,0.f,0.f,1.f };
+constexpr v4 GREEN = { 0.f,1.f,0.f,1.f };
+constexpr v4 BLUE  = { 0.f,0.f,1.f,1.f };
+}

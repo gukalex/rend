@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         port = atoi(argv[3]);
     } else if (argc == 2) {
         team_id = atoi(argv[1]);
-    } else {
+    } else if (argc != 1) {
         print("usage: team_id [host] [port]");
         return 1;
     }

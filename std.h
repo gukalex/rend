@@ -25,6 +25,16 @@ using i8 = char;
 using c8 = char;
 using f32 = float;
 
+struct coroutine { u32 line; i64 time; };
+#define CR(c) coroutine &_coro = c; switch(_coro.line)
+#define CR_START() case 0: _coro.line = 0;
+#define CR_YIELD() do { _coro.line = __LINE__; return; case __LINE__:; } while(0)
+#define CR_YIELD_UNTIL(cond) while(!(cond)) { CORO_YIELD(); }
+#define CR_WAIT(dur) do { if (_coro.time <= 0) _coro.time = tnow(); CR_YIELD_UNTIL(sec(tnow() - _coro.time) > dur); _coro.time = 0; } while (0)
+#define CR_WHILE_START(dur) if (_coro.time <= 0) _coro.time = tnow(); while(sec(tnow() - _coro.time) < dur) {
+#define CR_END CR_YIELD(); } _coro.time = 0;
+#define CR_RESET() _coro = {};
+
 struct v4 { float x, y, z, w; };
 struct v2 { float x, y; 
 v2 operator+=(v2 l) { x += l.x; y += l.y; return *this; };
