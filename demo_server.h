@@ -290,6 +290,10 @@ void update(rend& R) {
         commands[0] = com;
         unprocessed_commands = 1;
     }
+
+    static int tdur = 20;
+    ImGui::SliderInt("Tazer Frame Dur", &tdur, 1, 200);
+
     float fd = (R.fd > 1/60.f ? 1/60.f : R.fd); // sould be fixed so we don't freak out on spikes
     frame_count++;
     
@@ -407,7 +411,7 @@ void update(rend& R) {
                         }
                         f32 l = len(obj[target_id].pos - ob.pos);
                         if (l < TAZER_RADIUS) { // do taze
-                            tz_ef[index - UNIT_0].life = 20;
+                            tz_ef[index - UNIT_0].life = tdur;
                             tz_ef[index - UNIT_0].pos_source = &ob.pos;
                             tz_ef[index - UNIT_0].pos_target = &obj[target_id].pos;
                             push_event(index, EVENT_TAZER_SUCCESS);
@@ -546,13 +550,16 @@ void update(rend& R) {
         }
     }
 
+    static f32 tsize = 0.3;
+    static int nquads = 10;
+    ImGui::SliderFloat("Tazer Size", &tsize, 0.1, UNIT_SIZE);
+    ImGui::SliderInt("Tazer Quads", &nquads, 1, 100);
     for (int i = 0; i < MAX_TAZER_EF; i++) {
         if (tz_ef[i].life > 0) {
-            for (int j = 0; j < 10; j++) {
-                f32 size = UNIT_SIZE / 2.f;
+            for (int j = 0; j < nquads; j++) {
                 f32 offset = RN();
                 v2 pos = *(tz_ef[i].pos_source) + (*(tz_ef[i].pos_target) - *(tz_ef[i].pos_source)) * offset;
-                R.quad(pos - size / 2.f, pos + size / 2.f, { RN(),RN(),1, SHADER_TAZER});
+                R.quad(pos - tsize / 2.f, pos + tsize / 2.f, { RN(),RN(),1, SHADER_TAZER});
             }
             tz_ef[i].life--;
         }
