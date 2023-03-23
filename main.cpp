@@ -66,6 +66,8 @@ int main(void) {
 
     bool show_demo_window = false;
     while (!R.closed()) {
+        auto* viewport = ImGui::GetWindowViewport();
+        viewport->Flags |= ImGuiViewportFlags_TopMost;
         for (int i = 0; i < ARSIZE(demos); i++) {
             if (R.key_pressed('0' + i)) {
                 demos[i].init(R);

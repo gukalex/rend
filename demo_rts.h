@@ -25,6 +25,8 @@ constexpr f32 MAX_COFF_SIZE = 4.f;
 constexpr f32 EPS_GO = 1.f;
 constexpr f32 EPS_GRAB = MAX_COFF_SIZE;
 constexpr f32 MAX_UNIT_ENERGY = 1000.f;
+constexpr f32 TAZER_ENERGY = 200.f;
+constexpr f32 TAZER_RADIUS = ARENA_SIZE / 10.f;
 constexpr f32 MAX_SPAWN_ENERGY = 10000.f;
 constexpr f32 MAX_COFF_ENERGY = 2000.f;
 constexpr f32 UNIT_MIN_OPERATIONAL_ENERGY = 100.f;
@@ -84,6 +86,7 @@ enum action_type {
     ACTION_PLACE,
     ACTION_SLEEP,
     ACTION_TELEPORT,
+    ACTION_TAZER,
     // action force wake up?
 };
 enum reason_type {
@@ -107,6 +110,9 @@ enum event_type {
     EVENT_PUT_TO_SLEEP,
     EVENT_TELEPORT_SUCCESS,
     EVENT_TELEPORT_FAIL,
+    EVENT_TAZER_YOURSERLF,
+    EVENT_TAZER_SUCCESS,
+    EVENT_TAZED
 };
 
 struct object_state {

@@ -381,7 +381,43 @@ void update(rend& R) {
                                 obj[obj_id_target].pos = ob.pos;
                         }
                     }
-                        break;
+                    break;
+                    case ACTION_TAZER: {
+                        //push_event(index, EVENT_PUT_TO_SLEEP);
+                        u32 target_id = com.obj_id_target[j];
+                        if (target_id == 0) {
+                            ob.reason = REASON_ZERO_TARGET;
+                            push_event(index, EVENT_TAZER_YOURSERLF);
+                            push_event(index, EVENT_PUT_TO_SLEEP);
+                            ob.obj_id_target = 0;
+                            if (obj_id_target)
+                                obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
+                            ob.st = OBJ_STATE_UNIT_SLEEPING;
+                            ob.energy -= TAZER_ENERGY;
+                            continue;
+                        }
+                        f32 l = len(obj[target_id].pos - ob.pos);
+                        if (l < TAZER_RADIUS) {
+                            // taze
+                            push_event(index, EVENT_TAZER_SUCCESS);
+                            ob.energy -= TAZER_ENERGY;
+                            obj[target_id].st = OBJ_STATE_UNIT_SLEEPING;
+                            obj[target_id].energy -= TAZER_ENERGY;
+                            if (obj[target_id].obj_id_target) {
+                                obj[target_id].obj_id_target = 0;
+                                obj[obj[target_id].obj_id_target].st = OBJ_STATE_COFF_IDLE;
+                            }
+                        } else {
+                            ob.reason = REASON_FAR_AWAY;
+                            push_event(index, EVENT_TAZER_YOURSERLF);
+                            push_event(index, EVENT_PUT_TO_SLEEP);
+                            ob.obj_id_target = 0;
+                            if (obj_id_target)
+                                obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
+                            ob.st = OBJ_STATE_UNIT_SLEEPING;
+                            ob.energy -= TAZER_ENERGY;
+                        }
+                    }
                     default: break;
                     }
                 }
