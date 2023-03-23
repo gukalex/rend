@@ -11,6 +11,7 @@ using namespace rts;
 #define SHADER_QUAD 5.0f
 #define SHADER_COFF 4.0f
 #define SHADER_PORT 6.0f
+#define SHADER_TAZER 7.0f
 v2 spawn_loc[MAX_TEAMS] = {
     {10.f, 10.f},
     {90.f, 90.f},
@@ -31,6 +32,13 @@ constexpr v2 portals_loc[MAX_PORTAL] = {
     {10.f, 50.f},
     {90.f, 50.f},
 };
+
+constexpr int MAX_TAZER_EF = MAX_TEAMS * MAX_UNIT;
+struct tazer_ef {
+    int life;
+    v2* pos_target; v2* pos_source;
+};
+tazer_ef tz_ef[MAX_TAZER_EF];
 
 u64 score[MAX_TEAMS] = {0};
 const char* team_names[MAX_TEAMS] = {"Amogus", "Stefan", "Torbjorn", "Pepe"};
@@ -144,6 +152,8 @@ void init(rend& R) {
                 int index = int(vAttr.z);
                 vec4 colors[4] = { vec4(0, 0, 1, 1), vec4(1, 0.5, 0, 1), vec4(1,0,0,1), vec4(1,1,0,1)};
                 FragColor.rgba = texture(rend_t5, uv) * colors[index];
+            } else if (vAttr.w == 7) {
+                FragColor.rgba = vec4(vAttr.xyz, 0.6);
             }
             else
                 FragColor.rgba = vec4(1, 0, 0, 1); // debug
@@ -397,8 +407,12 @@ void update(rend& R) {
                         }
                         f32 l = len(obj[target_id].pos - ob.pos);
                         if (l < TAZER_RADIUS) { // do taze
+                            tz_ef[index - UNIT_0].life = 20;
+                            tz_ef[index - UNIT_0].pos_source = &ob.pos;
+                            tz_ef[index - UNIT_0].pos_target = &obj[target_id].pos;
                             push_event(index, EVENT_TAZER_SUCCESS);
-                            ob.energy -= TAZER_ENERGY;
+                            ob.energy -= TAZER_ENERGY; // todo: depending on the length
+                            push_event(target_id, EVENT_TAZED);
                             obj[target_id].st = OBJ_STATE_UNIT_SLEEPING;
                             obj[target_id].energy -= TAZER_ENERGY;
                             if (obj[target_id].obj_id_target) {
@@ -532,7 +546,17 @@ void update(rend& R) {
         }
     }
 
-    //R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
+    for (int i = 0; i < MAX_TAZER_EF; i++) {
+        if (tz_ef[i].life > 0) {
+            for (int j = 0; j < 10; j++) {
+                f32 size = UNIT_SIZE / 2.f;
+                f32 offset = RN();
+                v2 pos = *(tz_ef[i].pos_source) + (*(tz_ef[i].pos_target) - *(tz_ef[i].pos_source)) * offset;
+                R.quad(pos - size / 2.f, pos + size / 2.f, { RN(),RN(),1, SHADER_TAZER});
+            }
+            tz_ef[i].life--;
+        }
+    }
     R.submit(dd);
 }
 }
