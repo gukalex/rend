@@ -34,9 +34,10 @@ constexpr v2 portals_loc[MAX_PORTAL] = {
 };
 
 constexpr int MAX_TAZER_EF = MAX_TEAMS * MAX_UNIT;
+std::mutex tazer_mt;
 struct tazer_ef {
-    int life;
-    v2* pos_target; v2* pos_source;
+    int life; int target_id; int source_id;
+    //v2* pos_target; v2* pos_source;
 };
 tazer_ef tz_ef[MAX_TAZER_EF];
 
@@ -63,6 +64,11 @@ void say_hi(http_response* resp, const char*, u64) {
 void get_state_callback(http_response* resp, const char*, u64) {
     cur_st_mt.lock(); defer {cur_st_mt.unlock();};
     http_set_response(resp, (c8*)&cur_st, sizeof(cur_st), "application/octet-stream");
+}
+
+void get_tazer_ef_callback(http_response* resp, const char*, u64) {
+    tazer_mt.lock(); defer {tazer_mt.unlock();};
+    http_set_response(resp, (c8*)tz_ef, sizeof(tazer_ef) * MAX_TAZER_EF, "application/octet-stream");
 }
 
 void post_test(http_response* resp, const char* post_data, u64 post_data_size) {
@@ -121,6 +127,7 @@ void init(rend& R) {
         {REQUEST_GET, "/state", get_state_callback},
         {REQUEST_POST, "/post_test", post_test},
         {REQUEST_POST, "/state", post_state_callback},
+        {REQUEST_GET, "/tazers", get_tazer_ef_callback},
     };
     start_server("0.0.0.0", 8080, ARSIZE(cbk), cbk);
     if (!dd.prog) {
@@ -411,9 +418,12 @@ void update(rend& R) {
                         }
                         f32 l = len(obj[target_id].pos - ob.pos);
                         if (l < TAZER_RADIUS) { // do taze
-                            tz_ef[index - UNIT_0].life = tdur;
-                            tz_ef[index - UNIT_0].pos_source = &ob.pos;
-                            tz_ef[index - UNIT_0].pos_target = &obj[target_id].pos;
+                            {
+                                tazer_mt.lock(); defer{ tazer_mt.unlock(); }; // todo: per unit?
+                                tz_ef[index - UNIT_0].life = tdur;
+                                tz_ef[index - UNIT_0].source_id = index;//&ob.pos;
+                                tz_ef[index - UNIT_0].target_id = target_id;
+                            }
                             push_event(index, EVENT_TAZER_SUCCESS);
                             ob.energy -= TAZER_ENERGY; // todo: depending on the length
                             push_event(target_id, EVENT_TAZED);
@@ -558,11 +568,14 @@ void update(rend& R) {
         if (tz_ef[i].life > 0) {
             for (int j = 0; j < nquads; j++) {
                 f32 offset = RN();
-                v2 pos = *(tz_ef[i].pos_source) + (*(tz_ef[i].pos_target) - *(tz_ef[i].pos_source)) * offset;
+                v2 pos = obj[tz_ef[i].source_id].pos + (obj[tz_ef[i].target_id].pos - obj[tz_ef[i].source_id].pos) * offset;
                 R.quad(pos - tsize / 2.f, pos + tsize / 2.f, { RN(),RN(),1, SHADER_TAZER});
             }
-            tz_ef[i].life--;
         }
+    }
+    {
+        tazer_mt.lock(); defer{ tazer_mt.unlock(); };
+        for (int i = 0; i < MAX_TAZER_EF; i++) if (tz_ef[i].life > 0) tz_ef[i].life--;
     }
     R.submit(dd);
 }
