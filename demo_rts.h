@@ -96,6 +96,7 @@ enum reason_type {
     REASON_ZERO_TARGET,
     REASON_TARGET_TAKEN,
     REASON_FAR_AWAY,
+    REASON_DONT_YOU_HAVE_ENOUGH
 };
 enum event_type {
     EVENT_NONE,
