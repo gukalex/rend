@@ -35,9 +35,8 @@ constexpr v2 portals_loc[MAX_PORTAL] = {
 
 constexpr int MAX_TAZER_EF = MAX_TEAMS * MAX_UNIT;
 std::mutex tazer_mt;
-struct tazer_ef {
+struct tazer_ef { // todo: move to demo_rts
     int life; int target_id; int source_id;
-    //v2* pos_target; v2* pos_source;
 };
 tazer_ef tz_ef[MAX_TAZER_EF];
 

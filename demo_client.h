@@ -13,6 +13,12 @@ int port = 8080;
 const u64 DATA_SIZE = 1024 * 1024 * 1024;
 buffer_ex data;
 
+constexpr int MAX_TAZER_EF = MAX_TEAMS * MAX_UNIT;
+struct tazer_ef { // todo: move to demo_rts
+    int life; int target_id; int source_id;
+};
+tazer_ef tz_ef[MAX_TAZER_EF] = {};
+
 // debug state
 constexpr int MAX_DEBUG_FRAMES = 2000;// 1 state is around 3KB, so 2000 is only several sMBs
 current_state *cst;
@@ -48,6 +54,8 @@ void init(rend &R) {
                 int index = int(vAttr.z);
                 vec4 colors[4] = { vec4(0, 0, 1, 1), vec4(1, 0.5, 0, 1), vec4(1,0,0,1), vec4(1,1,0,1)};
                 FragColor.rgba = texture(rend_t5, uv) * colors[index];
+            } else if (vAttr.w == 7) {
+                FragColor.rgba = vec4(vAttr.xyz, 0.6);
             }
             else
                 FragColor.rgba = vec4(1, 0, 0, 1); // debug
@@ -109,6 +117,11 @@ void update(rend &R) {
         } else {
             memcpy(&cs, data.data, sizeof(cs));
         }
+        if (http_get(host,port, "/tazers", &data) != HTTP_ERROR) {
+            memcpy(tz_ef, data.data, sizeof(tazer_ef) * MAX_TAZER_EF);
+        } else {
+            memset(tz_ef, 0, sizeof(tazer_ef)*MAX_TAZER_EF);
+        }
     }
 
     {
@@ -129,6 +142,8 @@ void update(rend &R) {
 
         static int debug_state = 0;
         static bool override = false;
+        ImGui::SameLine(); if(R.key_pressed('<') || ImGui::Button("<")){ debug_state--; }; 
+        ImGui::SameLine(); if(R.key_pressed('>') || ImGui::Button(">")){ debug_state++; }
         ImGui::Checkbox("Override", &override); if (override) cs = cst[debug_state];
         ImGui::SliderInt("Frame", &debug_state, 0, MAX_DEBUG_FRAMES - 1);
         // print cs info
@@ -205,6 +220,7 @@ void update(rend &R) {
     #define SHADER_QUAD 5.0f
     #define SHADER_COFF 4.0f
     #define SHADER_PORT 6.0f
+    #define SHADER_TAZER 7.0f
     v4 spawn_color[MAX_TEAMS] = {
         // w reserved for shader id
         {1, 0, 0, SHADER_QUAD},
@@ -260,6 +276,20 @@ void update(rend &R) {
         v2 pos = R.mouse_norm() * ARENA_SIZE;
         v2 size = { 2.f, 2.f };
         R.quad(pos - size / 2.f, pos + size / 2.f, {0, 1, 0, SHADER_QUAD});
+    }
+
+    static f32 tsize = 0.3;
+    static int nquads = 10;
+    ImGui::SliderFloat("Tazer Size", &tsize, 0.1, UNIT_SIZE);
+    ImGui::SliderInt("Tazer Quads", &nquads, 1, 100);
+    for (int i = 0; i < MAX_TAZER_EF; i++) {
+        if (tz_ef[i].life > 0) {
+            for (int j = 0; j < nquads; j++) {
+                f32 offset = RN();
+                v2 pos = cs.info[tz_ef[i].source_id].pos + (cs.info[tz_ef[i].target_id].pos - cs.info[tz_ef[i].source_id].pos) * offset;
+                R.quad(pos - tsize / 2.f, pos + tsize / 2.f, { RN(),RN(),1, SHADER_TAZER});
+            }
+        }
     }
 
     R.clear({0.2f, 0.f, 0.f, 0.f});
