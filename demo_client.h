@@ -127,6 +127,8 @@ void update(rend &R) {
     {
         static int ccst = 0;
         static bool recording = false;
+        static bool always_record = false; // todo: always record by default, but when stopping it should show from the last frame to -2000
+        ImGui::Checkbox("Always Record", &always_record); ImGui::SameLine(); if (always_record && !recording) recording = true;
         if (!recording && ImGui::Button("Record State")) {
             recording = true;
         } else {
@@ -136,7 +138,7 @@ void update(rend &R) {
             cst[ccst++] = cs;
             if (ccst == MAX_DEBUG_FRAMES) {
                 ccst = 0;
-                recording = 0;
+                recording = always_record ? true : false;
             }
         }
 
