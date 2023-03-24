@@ -343,6 +343,11 @@ void update(rend& R) {
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
                             continue;
                         }
+                        if (ob.obj_id_target != 0) {
+                            ob.reason = REASON_DONT_YOU_HAVE_ENOUGH;
+                            push_event(index, EVENT_GRAB_AQUIRE_FAIL);
+                            continue;
+                        }
                         if (obj[target_id].st == OBJ_STATE_COFF_TAKEN) { // or != OBJ_IDLE or OBJ_TIRED
                             ob.reason = REASON_TARGET_TAKEN;
                             push_event(index, EVENT_GRAB_AQUIRE_FAIL);
@@ -372,9 +377,9 @@ void update(rend& R) {
                         break;
                     case ACTION_SLEEP: {
                         push_event(index, EVENT_PUT_TO_SLEEP);
+                        ob.obj_id_target = 0;
                         if (obj_id_target)
                             obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
-                        ob.obj_id_target = 0;
                         ob.st = OBJ_STATE_UNIT_SLEEPING;
                     }
                         break;
