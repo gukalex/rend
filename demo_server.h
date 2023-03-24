@@ -373,9 +373,9 @@ void update(rend& R) {
                         break;
                     case ACTION_SLEEP: {
                         push_event(index, EVENT_PUT_TO_SLEEP);
-                        ob.obj_id_target = 0;
                         if (obj_id_target)
                             obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
+                        ob.obj_id_target = 0;
                         ob.st = OBJ_STATE_UNIT_SLEEPING;
                     }
                         break;
