@@ -409,8 +409,10 @@ void update(rend& R) {
                     break;
                     case ACTION_TAZER: {
                         u32 target_id = com.obj_id_target[j];
-                        if (target_id == 0) {
-                            ob.reason = REASON_ZERO_TARGET;
+                        bool tazed_yourself = false;
+                        if (target_id == 0 || obj[target_id].st == OBJ_STATE_UNIT_SLEEPING) {
+                            tazed_yourself = true;
+                            ob.reason = obj[target_id].st == OBJ_STATE_UNIT_SLEEPING ? REASON_CRUEL : REASON_ZERO_TARGET;
                             push_event(index, EVENT_TAZER_YOURSERLF);
                             push_event(index, EVENT_PUT_TO_SLEEP);
                             ob.obj_id_target = 0;
@@ -438,6 +440,7 @@ void update(rend& R) {
                                 obj[target_id].obj_id_target = 0;
                             }
                         } else {
+                            tazed_yourself = true;
                             ob.reason = REASON_FAR_AWAY;
                             push_event(index, EVENT_TAZER_YOURSERLF);
                             push_event(index, EVENT_PUT_TO_SLEEP);
@@ -446,6 +449,12 @@ void update(rend& R) {
                                 obj[obj_id_target].st = OBJ_STATE_COFF_IDLE;
                             ob.st = OBJ_STATE_UNIT_SLEEPING;
                             ob.energy -= TAZER_ENERGY;
+                        }
+                        if (tazed_yourself) {
+                            tazer_mt.lock(); defer{ tazer_mt.unlock(); };
+                                tz_ef[index - UNIT_0].life = tdur;
+                                tz_ef[index - UNIT_0].source_id = index;
+                                tz_ef[index - UNIT_0].target_id = index;
                         }
                     }
                     default: break;
