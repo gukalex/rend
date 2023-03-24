@@ -479,6 +479,11 @@ void update(rend& R) {
                 obj[i].st = OBJ_STATE_UNIT_SLEEPING;
             }
         }
+        if (obj[i].energy < UNIT_MIN_OPERATIONAL_ENERGY) { // todo: don't repeate
+            push_event(i, EVENT_PUT_TO_SLEEP);
+            obj[i].reason = REASON_OUT_OF_ENERGY;
+            obj[i].st = OBJ_STATE_UNIT_SLEEPING;
+        }
         switch (obj[i].st) {
             case OBJ_STATE_UNIT_WALKING: {
                 v2 dir = obj[i].go_target - obj[i].pos;
