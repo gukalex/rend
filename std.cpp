@@ -153,7 +153,9 @@ int RNC(i32 b, i32 e) {
 i64 tnow() { // nanoseconds since epoch
     return std::chrono::high_resolution_clock::now().time_since_epoch().count();
 }
+
 void tsleep(i64 nano) {
-    // todo: set timer granularity for windows
+    // todo: timeBeginPeiod / timeEndPeiod for windows on the start of the application
+    // todo: nanosleep for linux
     std::this_thread::sleep_for(std::chrono::nanoseconds(nano));
 }

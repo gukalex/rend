@@ -14,7 +14,7 @@ enum {
 constexpr u32 DATA_MAX_ELEM = 8; // todo: just size + pointers
 struct draw_data {
     u32 prog; // todo: index and not direct opengl handle?
-    u32 tex[DATA_MAX_ELEM];  // todo: array
+    u32 tex[DATA_MAX_ELEM] = {};
     m4 m = identity(), v = identity(), p = identity();
 };
 
@@ -38,11 +38,11 @@ enum map_type {
 };
 
 struct rend {
-    iv2 wh;
-    bool vsync;  // pre-init parameter, todo: make init parameter instead
-    bool ms;     // multisample
-    bool debug = true;
-    bool save_and_load_win_params = false;
+    iv2 wh = {1024, 1024};
+    bool vsync = true;  // pre-init parameter, todo: make init parameter instead
+    bool ms = true;     // multisample
+    int debug = 1; // 1 - debug messages, 2 - GL_DEBUG_OUTPUT_SYNCHRONOUS; todo: enum debug_level
+    bool save_and_load_win_params = true;
     const char* window_name = "rend";
     u32 imgui_font_size = 16;
     const char* imgui_font_file_ttf = nullptr;
@@ -125,11 +125,12 @@ struct rend {
 };
 
 // color constants
-
 namespace C {
 constexpr v4 BLACK = { 0.f,0.f,0.f,1.f }; // alpha = 1
 constexpr v4 WHITE = { 1.f,1.f,1.f,1.f };
 constexpr v4 RED   = { 1.f,0.f,0.f,1.f };
 constexpr v4 GREEN = { 0.f,1.f,0.f,1.f };
 constexpr v4 BLUE  = { 0.f,0.f,1.f,1.f };
+constexpr v4 NICE  = { 0.95f, 0.62f, 0.61f, 1.f };
+constexpr v4 NICE_DARK = { 77 / 255.f, 65 / 255.f, 109 / 255.f, 1.f };
 }

@@ -19,8 +19,6 @@ g++ main.cpp rend.cpp std.cpp -I. glad.o stb_image.o -Iimgui/backends -Iimgui im
 #include "demo_compute.h"
 #include "demo_qube.h"
 #include "8086.h"
-#include "demo_client.h"
-#include "demo_server.h"
 #include "demo_coroutines.h"
 
 
@@ -29,9 +27,7 @@ demo demos[] = { {cpu_sim::init, cpu_sim::update, "0: 8086"},
                  {demo_quads::init, demo_quads::update, "1: quads"},
                  {demo_compute::init, demo_compute::update, "2: compute"},
                  {demo_qube::init, demo_qube::update, "3: qube"},
-                 {client::init, client::update, "4: client"},
-                 {demo_server::init, demo_server::update, "5: server"},
-                 {demo_coro::init, demo_coro::update, "6: coroutines"} };
+                 {demo_coro::init, demo_coro::update, "4: coroutines"} };
 int demos_count = sizeof(demos) / sizeof(demo);
 
 rend R;
@@ -58,7 +54,7 @@ int main(void) {
     #endif
     R.init();
     
-    int curr_demo = 5;
+    int curr_demo = 1;
     demos[curr_demo].init(R);
 
     i64 timer_start = tnow();

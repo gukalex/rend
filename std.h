@@ -11,8 +11,8 @@
 template<typename F> struct _defer { F f; _defer(F f) : f(f) {}; ~_defer() { f();} };
 #define defer _defer CONCAT_LINE(_defer_) = [&]()
 
-#define MAX(a,b) (a > b ? a : b)
-#define MIN(a,b) (a > b ? b : a)
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MIN(a,b) ((a) > (b) ? (b) : (a))
 
 using u64 = unsigned long long;
 using i64 = long long;

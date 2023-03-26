@@ -47,6 +47,7 @@ constexpr int MAGIC_UPDATE_COMMAND = 0xBABEEEEE;
 constexpr int VERSION_CURRENT_STATE = 1;
 constexpr int VERSION_UPDATE_COMMAND = 1;
 
+constexpr int MAX_TAZER_EF = MAX_TEAMS * MAX_UNIT;
 constexpr int MAX_PORTAL = 4; // per team
 constexpr f32 PORTAL_SIZE = 4.f; // per team
 constexpr f32 EPS_PORTAL = PORTAL_SIZE; // per team
@@ -138,11 +139,12 @@ struct current_state {
     int magic = MAGIC_CURRENT_STATE;
     int version = VERSION_CURRENT_STATE;
     u64 timestamp; // nanoseconds
-    u64 frame_count; // todo: ensure fixed time
+    u64 frame_count;
     //u64 events_processed
     u64 score[MAX_TEAMS] = {};
     i32 info_size = 0;  // number of visible objects in the radius // todo: specify radius
     object_state info[MAX_OBJ] = {}; // todo: make info per unit? so its visible who sees what?
+    // todo: tazer_ef[MAX_TAZER_EF] = {};
 };
 struct update_command {
     int magic = MAGIC_UPDATE_COMMAND;
@@ -153,6 +155,14 @@ struct update_command {
     v2 go_target[MAX_UNIT] = {};
     u32 obj_id_target[MAX_UNIT] = {}; // grab/place obj id
 };
+
+struct tazer_ef {
+    int life;
+    int target_id;
+    int source_id;
+};
+
+
 /* todo: add update_response struct - server can do action update in the http response and then the client won't need to wait until next frame to know if their action worked or not
 WIP:
 struct update_response {

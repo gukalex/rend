@@ -6,7 +6,7 @@
 // - 3d
 //      - scenes/camera/some math
 // - meshes/models?
-// - demoes
+// - demos
 //      - random generation
 //      - npc ai
 // - terrain
@@ -118,6 +118,8 @@ void rend::init() {
 
     if (debug) {
         glEnable(GL_DEBUG_OUTPUT);
+        if (debug > 1)
+            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(gl_errors, 0);
     }
     glEnable(GL_BLEND);
