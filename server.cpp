@@ -41,7 +41,7 @@ std::mutex cur_st_mt;
 current_state cur_st = {};
 
 void reset_rts_objects() {
-    // frame_count = 0; ?
+    frame_count = 0;
     const v2 spawn_loc[MAX_TEAMS] = {
         {10.f, 10.f}, {90.f, 90.f},
         {10.f, 90.f}, {90.f, 10.f},
@@ -72,6 +72,7 @@ void reset_rts_objects() {
         obj[i].team_id = i - SPAWN_0;
         obj[i].pos = spawn_loc[obj[i].team_id];
         obj[i].energy = MAX_SPAWN_ENERGY;
+        score[obj[i].team_id] = 0;
     }
     // init coff
     FOR_COFF(i) {
