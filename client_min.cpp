@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
     while(true) {
         http_error err = http_get(host, port, "/state", &response_get);
-        if (err == HTTP_ERROR) print("server error"); continue;
+        if (err == HTTP_ERROR) { print("server error"); continue; }
         memcpy(&st, response_get.data, sizeof(st));
         print("server tick: %llu", st.frame_count);
 
