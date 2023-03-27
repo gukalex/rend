@@ -1,5 +1,5 @@
 #build object files for libraries we are not gonna touch (slow):
-if [[ ! -f imgui.o || $1 = "ALL" ]] # todo: check all 
+if [[ ! -f imgui_unity.o || $1 = "ALL" ]] # todo: check all 
 then
     echo "recompiling obj files"
     g++ -c glad.c stb_image.c -I. http.cpp -Iimgui/backends -Iimgui imgui_unity.cpp -O3 -std=c++17 -lpthread
