@@ -62,7 +62,7 @@ void start_update_thread() {
                 if (cur_st.frame_count - prev_frame_count > 1) print("spike from %d to %d", prev_frame_count, cur_st.frame_count);
                 prev_frame_count = cur_st.frame_count;
             }
-            tsleep(nano(1/60.f * 0.6f)); // update almost twice the server tick rate
+            tsleep(nano(1/60.f * 0.2f)); // IDK
         }
     });
     th.detach();
@@ -97,7 +97,6 @@ void client_update(rend& R, current_state& cs) {
         int min_offset = first_fill ? MAX(-MAX_DEBUG_FRAMES + 1, -ccst + 1) : -MAX_DEBUG_FRAMES + 1;
         if (ImGui::Button(recording ? "Stop Recording" : "Continue Recording")) { recording = !recording; }
         else { Text("Recording frame %d out of %d", ccst, MAX_DEBUG_FRAMES); }
-        print("%d: prev record %llu, current %llu", last_written, cst[last_written].frame_count, cs.frame_count);
         if (recording && cst[last_written].frame_count != cs.frame_count) { // record only new frames
             last_written = ccst;
             cst[ccst++] = cs;

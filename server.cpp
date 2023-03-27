@@ -471,7 +471,7 @@ int main(void) {
         if (update_end < next_frame) { // todo: compensate timer resolution
             tsleep(next_frame - update_end);
             i64 after_sleep = tnow();
-            print("sleep dur(ms): asked %f, got %f (diff %f - %s)", sec(next_frame - update_end)*1000.f, sec(after_sleep - update_end) * 1000.f, sec(next_frame - after_sleep) * 1000.f, (next_frame < after_sleep ? "oversleep" : "undersleep"));
+            //print("sleep dur(ms): asked %f, got %f (diff %f - %s)", sec(next_frame - update_end)*1000.f, sec(after_sleep - update_end) * 1000.f, sec(next_frame - after_sleep) * 1000.f, (next_frame < after_sleep ? "oversleep" : "undersleep"));
         } else {
             print("long frame"); // todo: do something?
         }
