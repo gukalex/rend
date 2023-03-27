@@ -41,7 +41,13 @@ std::mutex cur_st_mt;
 current_state cur_st = {};
 
 void reset_rts_objects() {
-    // frame_count = 0; ?
+    { 
+        command_mt.lock(); defer {command_mt.unlock();};
+        unprocessed_commands = 0; 
+        memset(commands, 0, sizeof(update_command) * MAX_COMMANDS);
+    }
+    buf_unprocessed_commands = 0;
+    frame_count = 0;
     const v2 spawn_loc[MAX_TEAMS] = {
         {10.f, 10.f}, {90.f, 90.f},
         {10.f, 90.f}, {90.f, 10.f},
@@ -54,6 +60,7 @@ void reset_rts_objects() {
     obj[0].type = OBJ_NONE; // special id
     // init units
     for (int i = UNIT_0; i < UNIT_0 + MAX_TEAMS * MAX_UNIT; i++) {
+        obj[i] = {};
         obj[i].type = OBJ_UNIT;
         obj[i].st = OBJ_STATE_UNIT_IDLE;
         obj[i].obj_id = i;
@@ -61,20 +68,24 @@ void reset_rts_objects() {
         v2 sl = spawn_loc[obj[i].team_id];
         obj[i].pos = { RNC(sl.x - SPAWN_SIZE / 2.f, sl.x + SPAWN_SIZE / 2.f), RNC(sl.y - SPAWN_SIZE / 2.f, sl.y + SPAWN_SIZE / 2.f) };
         obj[i].energy = MAX_UNIT_ENERGY;
+        obj[i].obj_id_target = 0;
         //last_events[2] = {};
         //target_obj_id;
     }
     // init spawn // todo: move at the last index last so we can render with transparency on the top
     FOR_SPAWN(i) {
+        obj[i] = {};
         obj[i].type = OBJ_SPAWN;
         obj[i].st = OBJ_STATE_NONE;
         obj[i].obj_id = i;
         obj[i].team_id = i - SPAWN_0;
         obj[i].pos = spawn_loc[obj[i].team_id];
         obj[i].energy = MAX_SPAWN_ENERGY;
+        score[obj[i].team_id] = 0;
     }
     // init coff
     FOR_COFF(i) {
+        obj[i] = {};
         obj[i].type = OBJ_COFF;
         obj[i].st = OBJ_STATE_COFF_IDLE;
         obj[i].obj_id = i;
@@ -84,8 +95,8 @@ void reset_rts_objects() {
         obj[i].energy = MAX_COFF_ENERGY;
     }
     // init portals
-    FOR_PORTAL(i)
-    {
+    FOR_PORTAL(i) {
+        obj[i] = {};
         obj[i].type = OBJ_PORTAL;
         obj[i].st = OBJ_STATE_NONE;
         obj[i].obj_id = i;
