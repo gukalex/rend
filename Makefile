@@ -50,7 +50,7 @@ ${BIN_CLIENT}: ${OBJ} ${OBJPP_C}
 	g++ $^ ${LDFLAGS} -o $@
 
 ${BIN_CLIENT_MIN}: ${OBJPP_CM}
-	g++ $^ ${LDFLAGS} -o $@
+	g++ $^ ${LDFLAGS_CM} -o $@
 
 imgui:
 	git clone -b docking --depth 1 https://github.com/ocornut/imgui
