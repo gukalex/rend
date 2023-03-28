@@ -34,6 +34,7 @@ constexpr f32 GRAB_ENERGY_PER_S = 300.f;
 constexpr f32 SLEEP_ENERGY_PER_S = 100.f;
 constexpr f32 SLEEP_ENERGY_AT_BASE_PER_S = 200.f;
 constexpr f32 UNIT_SPEED = ARENA_SIZE / 10.f;
+constexpr f32 UNIT_MOVE_SPEED = UNIT_SPEED * 0.75;
 constexpr int MAX_UNIT = 10; // per team
 constexpr int MAX_TEAMS = 4;
 constexpr int MAX_COFF = 10;

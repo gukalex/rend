@@ -285,8 +285,9 @@ void rts_update(float fd) {  // todo: i64 fd and always static
             obj[i].reason = REASON_OUT_OF_ENERGY;
             obj[i].st = OBJ_STATE_UNIT_SLEEPING;
         }
-        // decrease energy while holding the target
         u32 target_id = obj[i].obj_id_target;
+        /*
+        // decrease energy while holding the target
         if (target_id) {
             obj[i].energy -= fd * GRAB_ENERGY_PER_S;
             if (obj[i].energy < UNIT_MIN_OPERATIONAL_ENERGY) {
@@ -294,7 +295,7 @@ void rts_update(float fd) {  // todo: i64 fd and always static
                 obj[i].obj_id_target = 0;
                 obj[target_id].st = OBJ_STATE_COFF_IDLE;
             }
-        }
+        }*/
         switch (obj[i].st) {
         case OBJ_STATE_UNIT_WALKING: {
             v2 dir = obj[i].go_target - obj[i].pos;
@@ -305,7 +306,7 @@ void rts_update(float fd) {  // todo: i64 fd and always static
             }
             else {
                 // walk in the direction
-                v2 new_pos = obj[i].pos + norm(dir) * fd * UNIT_SPEED;
+                v2 new_pos = obj[i].pos + norm(dir) * fd * (target_id ? UNIT_MOVE_SPEED : UNIT_SPEED);
                 if (new_pos != clamp(new_pos, { 0,0 }, { ARENA_SIZE, ARENA_SIZE })) {
                     obj[i].st = OBJ_STATE_UNIT_IDLE;
                     push_event(i, EVENT_GO_FAIL);
@@ -313,7 +314,7 @@ void rts_update(float fd) {  // todo: i64 fd and always static
                 }
                 obj[i].pos = clamp(new_pos, { 0,0 }, { ARENA_SIZE, ARENA_SIZE });
                 if (target_id) { // move attached object along with it
-                    v2 obj_new_pos = obj[target_id].pos + norm(dir) * fd * UNIT_SPEED;
+                    v2 obj_new_pos = obj[target_id].pos + norm(dir) * fd * UNIT_MOVE_SPEED;
                     obj[target_id].pos = clamp(obj_new_pos, { 0,0 }, { ARENA_SIZE, ARENA_SIZE });
                 }
             }
