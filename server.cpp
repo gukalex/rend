@@ -280,22 +280,17 @@ void rts_update(float fd) {  // todo: i64 fd and always static
     }
 
     FOR_UNIT(i) {
+        u32 target_id = obj[i].obj_id_target;
         if (obj[i].energy < UNIT_MIN_OPERATIONAL_ENERGY && obj[i].st != OBJ_STATE_UNIT_SLEEPING) {
             push_event(i, EVENT_PUT_TO_SLEEP);
             obj[i].reason = REASON_OUT_OF_ENERGY;
             obj[i].st = OBJ_STATE_UNIT_SLEEPING;
-        }
-        u32 target_id = obj[i].obj_id_target;
-        /*
-        // decrease energy while holding the target
-        if (target_id) {
-            obj[i].energy -= fd * GRAB_ENERGY_PER_S;
-            if (obj[i].energy < UNIT_MIN_OPERATIONAL_ENERGY) {
+            if (target_id) {
                 push_event(i, EVENT_GRAB_LOST);
                 obj[i].obj_id_target = 0;
                 obj[target_id].st = OBJ_STATE_COFF_IDLE;
             }
-        }*/
+        }
         switch (obj[i].st) {
         case OBJ_STATE_UNIT_WALKING: {
             v2 dir = obj[i].go_target - obj[i].pos;
