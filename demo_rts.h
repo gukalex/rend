@@ -22,7 +22,6 @@ constexpr f32 ARENA_SIZE = 100.f;
 constexpr f32 SPAWN_SIZE = 10.f; // todo: use ARENA_SIZE
 constexpr f32 UNIT_SIZE = 2.f;
 constexpr f32 MAX_COFF_SIZE = 4.f;
-constexpr f32 EPS_GO = 1.f;
 constexpr f32 EPS_GRAB = MAX_COFF_SIZE;
 constexpr f32 MAX_UNIT_ENERGY = 1000.f;
 constexpr f32 TAZER_ENERGY = 200.f;
