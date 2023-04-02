@@ -3,6 +3,20 @@
 #include "demo_rts.h"
 #include "imgui/imgui.h"
 
+/*
+example usage:
+rend R = {}; R.init(); draw_data dd = init_rts_dd(R);
+while (!R.closed()) {
+    current_state state_to_render = ... // state from http request
+    tazer_ef* tz_ef = ... // tazer effects from http request
+    R.clear(C::NICE_DARK);
+    draw_rts(R, state_to_render, tz_ef);
+    R.submit(dd);
+    R.present();
+}
+R.cleanup();
+*/
+
 namespace rts {
 
 const char* fs_rst_uber = R"(#version 450 core
@@ -79,9 +93,9 @@ void draw_rts(rend &R, current_state &cs, tazer_ef* tz_ef) {
         default: break;
         }
     }
-    static f32 tsize = 0.3;
+    static f32 tsize = 0.3f;
     static int nquads = 10;
-    ImGui::SliderFloat("Tazer Size", &tsize, 0.1, UNIT_SIZE);
+    ImGui::SliderFloat("Tazer Size", &tsize, 0.1f, UNIT_SIZE);
     ImGui::SliderInt("Tazer Quads", &nquads, 1, 100);
     for (int i = 0; i < MAX_TAZER_EF; i++) {
         if (tz_ef[i].life > 0) {

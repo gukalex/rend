@@ -105,13 +105,15 @@ void rend::init() {
         }
     }
     glfwMakeContextCurrent(window);
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress); // todo: assert successfull
     if (ms)
         glEnable(GL_MULTISAMPLE);
     if (vsync)
         glfwSwapInterval(1);
     else
         glfwSwapInterval(0);
+    if (depth_test)
+        glEnable(GL_DEPTH_TEST);
     glViewport(0, 0, wh.x, wh.y);
     glfwSetWindowUserPointer(window, (void*)this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -342,16 +344,18 @@ void rend::win_size(iv2 pwh) {
     glfwSetWindowSize(window, wh.x, wh.y);
 }
 
-bool rend::key_pressed(u32 kt) {
-    if (ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) return false;
+int rend::key_pressed(u32 kt, u32 flags) {
+    if (flags & KT::IGNORE_IMGUI && (ImGui::IsWindowFocused() || ImGui::IsWindowHovered() /*?*/)) return 0;
     switch (kt) {
-    case KT::MBL: return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-    case KT::MBR: return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    case KT::MBL: return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+    case KT::MBR: return glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+    case KT::CTRL: return glfwGetKey(window, GLFW_KEY_LEFT_CONTROL);
+    case KT::SHIFT: return glfwGetKey(window, GLFW_KEY_LEFT_SHIFT);
     default: {
-        return glfwGetKey(window, kt) == GLFW_PRESS;
+        return glfwGetKey(window, kt);
     } break;
     }
-    return false;
+    return 0;
 }
 
 iv2 rend::mouse() {
@@ -366,8 +370,8 @@ v2 rend::mouse_norm() {
 }
 
 void rend::clear(v4 c) {
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(c.x, c.y, c.z, c.w);
+    glClear(GL_COLOR_BUFFER_BIT | (depth_test ? GL_DEPTH_BUFFER_BIT : 0));
+    glClearColor(c.x, c.y, c.z, c.w); // why it's under glClear?
 }
 
 void rend::quad_a(v2 lb, v2 rt, v4 attr[4]) {

@@ -5,9 +5,15 @@
 struct GLFWwindow;
 namespace KT {
 enum {
+    NONE = 0,
+    IGNORE_IMGUI = 1
+};
+enum {
     KEY = 0,
     MBL,
-    MBR
+    MBR,
+    CTRL,
+    SHIFT
 };
 }
 
@@ -41,6 +47,7 @@ struct rend {
     iv2 wh = {1024, 1024};
     bool vsync = true;  // pre-init parameter, todo: make init parameter instead
     bool ms = true;     // multisample
+    bool depth_test = true; // todo: put into draw state
     int debug = 1; // 1 - debug messages, 2 - GL_DEBUG_OUTPUT_SYNCHRONOUS; todo: enum debug_level
     bool save_and_load_win_params = true;
     const char* window_name = "rend";
@@ -78,12 +85,13 @@ struct rend {
         void main() {
             vec2 uv = vAttr.xy;
             FragColor.rgba = texture(rend_t0, uv).rgba;
+            //todo: if depth test enabled do alpha test (or in a different shader)
         })";
     u32 vb_quad;
     u32 sb_quad_pos;
     u32 sb_quad_attr1;
     u32 sb_quad_indices;
-    u32 max_quads = 1'000'000; // per init
+    u32 max_quads = 100'000; // todo: revise or make the use of it more explicit 
     float* quad_pos; // vec2
     float* quad_attr1; // vec4
     u32 curr_quad_count = 0;
@@ -100,7 +108,7 @@ struct rend {
     void cleanup();
 
     void win_size(iv2 wh); // set window size
-    bool key_pressed(u32 kt);
+    int key_pressed(u32 kt, u32 flags = KT::IGNORE_IMGUI);
     iv2 mouse();
     v2 mouse_norm();
 

@@ -35,9 +35,22 @@ struct coroutine { u32 line; i64 time; };
 #define CR_END CR_YIELD(); } _coro.time = 0;
 #define CR_RESET() _coro = {};
 
-struct v4 { float x, y, z, w; };
+struct v4 { float x, y, z, w; 
+v4 operator+=(v4 l) { x += l.x; y += l.y; z += l.z; w += l.w; return *this; }; // w?
+v4 operator-=(v4 l) { x -= l.x; y -= l.y; z -= l.z; w -= l.w; return *this; }; // w?
+}; struct v4a { float val[4]; };
+inline v4 operator/(v4 r, float f) { return { r.x / f, r.y / f, r.z / f, r.w / f }; };
+inline v4 operator-(v4 r, v4 l) { return { r.x - l.x, r.y - l.y, r.z - l.z, r.w - l.w}; }; // w?
+inline v4 operator*(v4 r, v4 l) { return { r.x * l.x, r.y * l.y, r.z * l.z, r.w * l.w }; }; // w?
+inline v4 operator+(v4 r, v4 l) { return { r.x + l.x, r.y + l.y, r.z + l.z, r.w + l.w}; }; // w?
+inline v4 operator-(v4 r) { return { -r.x, -r.y, -r.z, -r.w }; }; // w?
+inline v4 operator*(v4 r, f32 l) { return { r.x * l, r.y * l, r.z * l, r.w * l }; }; // w?
+
 struct v2 { float x, y; 
 v2 operator+=(v2 l) { x += l.x; y += l.y; return *this; };
+v2 operator-=(v2 l) { x -= l.x; y -= l.y; return *this; };
+v2 operator*=(v2 l) { x *= l.x; y *= l.y; return *this; };
+v2 operator*=(f32 l) { x *= l; y *= l; return *this; };
 operator bool() { return x != 0 || y != 0; };
 bool operator==(v2 l) { return x == l.x && y == l.y; };
 bool operator!=(v2 l) { return !(x == l.x && y == l.y); };
@@ -46,7 +59,6 @@ bool operator>=(v2 l) { return (x >= l.x && y >= l.y); };
 bool operator>(v2 l) { return (x > l.x && y > l.y); };
 bool operator<(v2 l) { return (x < l.x && y < l.y); };
 };
-struct iv2 { int x, y; };
 inline v2 operator+(v2 r, v2 l) { return { r.x + l.x, r.y + l.y }; };
 inline v2 operator-(v2 r, v2 l) { return { r.x - l.x, r.y - l.y }; };
 inline v2 operator*(v2 r, v2 l) { return { r.x * l.x, r.y * l.y }; };
@@ -55,18 +67,42 @@ inline v2 operator+(v2 r, float f) { return { r.x + f, r.y + f }; };
 inline v2 operator-(v2 r, float f) { return { r.x - f, r.y - f }; };
 inline v2 operator/(v2 r, float f) { return { r.x / f, r.y / f }; };
 
-struct m4 { v4 _0, _1, _2, _3; };
+struct iv2 { int x, y; }; inline v2 to_v2(iv2 v) { return { (f32)v.x, (f32)v.y }; };
 
-m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n = -1, f32 f = 1);
+struct m4 { v4 _0, _1, _2, _3; }; struct m4a { v4a val[4]; };
+inline m4 operator*(const m4& aa, const m4& bb) {
+    m4a result; m4a a = *(m4a*)&aa; m4a b = *(m4a*)&bb;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            float sum = 0;
+            for (int k = 0; k < 4; ++k) {
+                sum += a.val[i].val[k] * b.val[k].val[j];
+            }
+            result.val[i].val[j] = sum;
+        }
+    }
+    return *(m4*)&result;
+}
+
+m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n = -1/*?*/, f32 f = 1);
+m4 perspective(f32 fov, f32 ar, f32 n, f32 f);
+m4 look_at(v4 eye, v4 up, v4 at);
 m4 identity();
 f32 len(v2 v);
+f32 len(v4 v);
 v2 norm(v2 v);
+v4 norm(v4 v);
+f32 dot(v4 l, v4 r);
+v4 cross(v4 l, v4 r);
 inline f32 clamp(f32 v, f32 b, f32 e) {
     return MAX(b, MIN(v, e));
 }
 inline v2 clamp(v2 v, v2 b, v2 e) {
     return { clamp(v.x, b.x, e.x), clamp(v.y, b.y, e.y) };
 }
+
+constexpr f32 PI = 3.141592653589793f;
+
 struct buffer {
     u8* data;
     u64 size;

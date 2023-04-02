@@ -120,7 +120,26 @@ m4 ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f) {
         {0, 0, -2 /(f - n), -(f + n) / (f - n)},
         {0, 0, 0, 1} };
 }
-
+m4 perspective(f32 fov, f32 ar, f32 n, f32 f) {
+    f32 tan = tanf(fov / 2.f);
+    return  {
+        1.f / (ar * tan), 0,0,0,
+        0, 1.f / (tan), 0,0,
+        0,0, -(f + n) / (f - n),-2.f * f * n / (f - n),
+        0,0,-1,0
+    };
+}
+m4 look_at(v4 eye, v4 up, v4 at) {
+    v4 zaxis = norm(eye - at);
+    v4 xaxis = norm(cross(up, zaxis));
+    v4 yaxis = cross(zaxis, xaxis);
+    return {
+        xaxis.x, xaxis.y, xaxis.z, -dot(xaxis, eye),
+        yaxis.x, yaxis.y, yaxis.z, -dot(yaxis, eye),
+        zaxis.x, zaxis.y, zaxis.z, -dot(zaxis, eye),
+        0,0,0,1
+    };
+}
 m4 identity() {
     return {
         {1, 0, 0, 0},
@@ -132,8 +151,25 @@ m4 identity() {
 f32 len(v2 v) {
     return { sqrtf(v.x * v.x + v.y * v.y) };
 }
+f32 len(v4 v) {
+    return { sqrtf(v.x * v.x + v.y * v.y + v.z * v.z) };
+}
 v2 norm(v2 v) {
     return v / len(v);
+}
+v4 norm(v4 v) {
+    return v / len(v);
+}
+f32 dot(v4 l, v4 r) {
+    return l.x * r.x + l.y * r.y + l.z * r.z;
+}
+v4 cross(v4 l, v4 r) {
+    return {
+        (l.y * r.z - l.z * r.y),
+        (l.z * r.x - l.x * r.z),
+        (l.x * r.y - l.y * r.x),
+        1.0f //?
+    };
 }
 
 float RN() { return rand() / (float)RAND_MAX; }

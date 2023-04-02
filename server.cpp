@@ -295,7 +295,7 @@ void rts_update(float fd) {  // todo: i64 fd and always static
         case OBJ_STATE_UNIT_WALKING: {
             v2 dir = obj[i].go_target - obj[i].pos;
             f32 mov_speed =  (target_id ? UNIT_MOVE_SPEED : UNIT_SPEED);
-            f32 eps = mov_speed * fd /*it's fixed anyways*/ * 1.25/*todo: fix, this can be exploited for extra speed*/;
+            f32 eps = mov_speed * fd /*it's fixed anyways*/ * 1.25f/*todo: fix, this can be exploited for extra speed*/;
             if (len(dir) < eps) {
                 obj[i].st = OBJ_STATE_UNIT_IDLE;
                 obj[i].pos = obj[i].go_target;
