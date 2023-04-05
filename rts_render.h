@@ -76,19 +76,19 @@ void draw_rts(rend &R, current_state &cs, tazer_ef* tz_ef) {
         switch (cs.info[i].type) {
         case OBJ_UNIT: {
             f32 alpha_level = (cs.info[i].st == OBJ_STATE_UNIT_SLEEPING ? 0.2f : 1.0f);
-            R.quad_t(cs.info[i].pos - UNIT_SIZE / 2.f, cs.info[i].pos + UNIT_SIZE / 2.f, { alpha_level, (f32)cs.info[i].team_id });
+            R.qb.quad_t(cs.info[i].pos - UNIT_SIZE / 2.f, cs.info[i].pos + UNIT_SIZE / 2.f, { alpha_level, (f32)cs.info[i].team_id });
         } break;
         case OBJ_COFF: {
             f32 size = clamp(cs.info[i].energy / MAX_COFF_ENERGY, 0.1f, 1.0f);
             f32 alpha_level = (cs.info[i].st == OBJ_STATE_COFF_TAKEN ? 0.2f : 1.0f);
-            R.quad_t(cs.info[i].pos - MAX_COFF_SIZE * size / 2.f, cs.info[i].pos + MAX_COFF_SIZE * size / 2.f, { alpha_level, SHADER_COFF });
+            R.qb.quad_t(cs.info[i].pos - MAX_COFF_SIZE * size / 2.f, cs.info[i].pos + MAX_COFF_SIZE * size / 2.f, { alpha_level, SHADER_COFF });
         } break;
         case OBJ_SPAWN:
-            R.quad(cs.info[i].pos - SPAWN_SIZE / 2.f, cs.info[i].pos + SPAWN_SIZE / 2.f, spawn_color[cs.info[i].team_id]);
+            R.qb.quad(cs.info[i].pos - SPAWN_SIZE / 2.f, cs.info[i].pos + SPAWN_SIZE / 2.f, spawn_color[cs.info[i].team_id]);
             break;
         case OBJ_PORTAL: {
             f32 color_index = (f32)(i - PORTAL_0);
-            R.quad_t(cs.info[i].pos - PORTAL_SIZE / 2.f, cs.info[i].pos + PORTAL_SIZE / 2.f, {color_index, SHADER_PORT});
+            R.qb.quad_t(cs.info[i].pos - PORTAL_SIZE / 2.f, cs.info[i].pos + PORTAL_SIZE / 2.f, {color_index, SHADER_PORT});
         } break;
         default: break;
         }
@@ -102,7 +102,7 @@ void draw_rts(rend &R, current_state &cs, tazer_ef* tz_ef) {
             for (int j = 0; j < nquads; j++) {
                 f32 offset = RN();
                 v2 pos = cs.info[tz_ef[i].source_id].pos + (cs.info[tz_ef[i].target_id].pos - cs.info[tz_ef[i].source_id].pos) * offset;
-                R.quad(pos - tsize / 2.f, pos + tsize / 2.f, { RN(),RN(),1, SHADER_TAZER});
+                R.qb.quad(pos - tsize / 2.f, pos + tsize / 2.f, { RN(),RN(),1, SHADER_TAZER});
             }
         }
     }

@@ -400,7 +400,7 @@ void start_render_thread() {
 
             R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
             draw_rts(R, state_to_render, tz_ef);
-            R.submit(dd); // todo: inside draw_state?
+            R.submit_quads(&dd); // todo: inside draw_state?
 
             ImGui::End();
             R.present();

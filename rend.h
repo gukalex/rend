@@ -18,10 +18,17 @@ enum {
 }
 
 constexpr u32 DATA_MAX_ELEM = 8; // todo: just size + pointers
+struct indexed_buffer {
+    u32 id; //vao...?
+    u32 index_offset; // num of indices * sizeof(int)
+    u32 vertex_count; // num of triangles * 3
+};
 struct draw_data {
+    indexed_buffer ib;
     u32 prog; // todo: index and not direct opengl handle?
     u32 tex[DATA_MAX_ELEM] = {};
     m4 m = identity(), v = identity(), p = identity();
+    // custom uniforms
 };
 
 struct dispatch_data {
@@ -43,6 +50,31 @@ enum map_type {
     MAP_WRITE = 2 // GL_MAP_WRITE_BIT
 };
 
+struct quad_batcher {
+    u32 max_quads = 100'000; // todo: revise or make the use of it more explicit 
+
+    u32 vb_quad;
+    u32 sb_quad_pos;
+    u32 sb_quad_attr1;
+    u32 sb_quad_indices;
+    float* quad_pos; // vec2
+    float* quad_attr1; // vec4
+    u32 curr_quad_count = 0;
+    u32 saved_count = 0; // for next_ib
+
+    void init();
+    void cleanup(); // todo: enum option to only cleanup cpu memory (for static mesh builders)
+    indexed_buffer next_ib();
+    u32 index_offset() { return curr_quad_count * 6 * sizeof(int); }
+    u32 vertex_count() { return curr_quad_count * 6; }
+    void upload(indexed_buffer* ib);
+
+    void quad(v2 lb, v2 rt, v4 c); // 0-1
+    void quad_a(v2 lb, v2 rt, v4 attr[4]);
+    void quad_t(v2 lb, v2 rt, v2 attr);
+    void quad_s(v2 center, f32 size, v4 c);
+};
+
 struct rend {
     iv2 wh = {1024, 1024};
     bool vsync = true;  // pre-init parameter, todo: make init parameter instead
@@ -59,6 +91,14 @@ struct rend {
     i64 curr_time; // time, nanosec
     i64 prev_time;
     float fd = 1 / 60.0f; // current frame delta
+
+    u32 *progs;     // todo: revise
+    int curr_progs; //
+    u32 *textures;  //
+    int curr_tex;   //
+
+    draw_data dd = {};
+    quad_batcher qb = {}; // todo: remove?
 
     const char* vs_quad = R"(
         #version 450 core
@@ -87,20 +127,7 @@ struct rend {
             FragColor.rgba = texture(rend_t0, uv).rgba;
             //todo: if depth test enabled do alpha test (or in a different shader)
         })";
-    u32 vb_quad;
-    u32 sb_quad_pos;
-    u32 sb_quad_attr1;
-    u32 sb_quad_indices;
-    u32 max_quads = 100'000; // todo: revise or make the use of it more explicit 
-    float* quad_pos; // vec2
-    float* quad_attr1; // vec4
-    u32 curr_quad_count = 0;
-    draw_data default_quad_data; // first shader, no textures
 
-    u32 *progs;
-    int curr_progs;
-    u32 *textures;
-    int curr_tex;
 
     void init();
     bool closed(); // todo: rename/separate 
@@ -113,7 +140,7 @@ struct rend {
     v2 mouse_norm();
 
     void clear(v4 c); // todo: push api
-    void submit(draw_data data); // todo: push api
+    //void submit(draw_data data); // todo: push api
     void dispatch(dispatch_data data); // compute // todo: push api
     void ssbo_barrier(); // todo: type
 
@@ -125,11 +152,8 @@ struct rend {
     void* map(u32 buffer, u64 offset, u64 size, map_type flags);
     void unmap(u32 buffer);
 
-    void quad(v2 lb, v2 rt, v4 c); // 0-1
-    void quad_a(v2 lb, v2 rt, v4 attr[4]);
-    void quad_t(v2 lb, v2 rt, v2 attr);
-
-    void quad_s(v2 center, f32 size, v4 c);
+    void submit_quads(draw_data *dd); // updates indexed_buffer
+    void submit(draw_data* dd, int dd_count);
 };
 
 // color constants

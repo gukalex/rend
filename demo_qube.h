@@ -5,7 +5,9 @@
 #include <GLFW/glfw3.h>
 namespace demo_qube {
 i64 tstart;
-draw_data data = {}, data_second = {};
+draw_data data = {};
+quad_batcher static_builder = {};
+indexed_buffer static_ib[3] = {};
 f32 angle = 0, angle_b = PI/2, cam_speed = 100;
 v4 cam_pos = {0,5,50}, cam_fwd = {0, 0, -1}, cam_up = {0,1,0};
 bool use_orth = false, rotate = false, fps_look = false;
@@ -16,7 +18,7 @@ f32 yaw = -PI/2, pitch = 0.f;
 void init(rend& R) {
     tstart = tnow();
     if (!data.prog) {
-        data_second.prog = data.prog = R.shader(R.vs_quad, R"(
+        data.prog = R.shader(R.vs_quad, R"(
         #version 450 core
         in vec4 vAttr;
         out vec4 FragColor;
@@ -24,9 +26,23 @@ void init(rend& R) {
         void main() {
             vec2 uv = vAttr.xy;
             FragColor.rgba = texture(rend_t0, uv).rgba;
-            if (FragColor.a < 0.1) discard;
+            if (FragColor.a < 0.1) discard; // alpha test
         })");
-        data_second.tex[0] = data.tex[0] = R.texture("pepe.png");   
+        data.tex[0] = R.texture("pepe.png");   
+
+        static_builder.max_quads = 4;
+        static_builder.init();
+
+        static_builder.quad_t({ 0,0 }, { 10, 10 }, {});
+        static_builder.quad_t({ 20,0 }, { 30, 10 }, {});
+        static_ib[0] = static_builder.next_ib();
+        static_builder.quad_t({ 30,0 }, { 40, 10 }, {});
+        static_ib[1] = static_builder.next_ib();
+        static_builder.quad_t({ 0,0 }, { 100,100 }, {});
+        static_ib[2] = static_builder.next_ib();
+
+        static_builder.upload(nullptr);
+        // cleanup static_builder cpu mem?
     }
 }
 m4 rot_mat(f32 a) { return {
@@ -91,21 +107,30 @@ void update(rend& R) { using namespace ImGui;
     }
 
     float x_ar = R.wh.x / (float)R.wh.y;
-    data_second.p = data.p = use_orth ? ortho(-500.f, 500.f, -500.f, 500.f, 0.1f, 500.f) : perspective(PI/4, x_ar, 0.01f, 500.f);
-    data_second.v = data.v = look_at(cam_pos, cam_up, at);
+    data.p = use_orth ? ortho(-500.f, 500.f, -500.f, 500.f, 0.1f, 500.f) : perspective(PI/4, x_ar, 0.01f, 500.f);
+    data.v = look_at(cam_pos, cam_up, at);
     data.m = rot_x_mat(angle);
+
     R.clear(C::BLACK);
 
-    R.quad_t({ 0,0 }, { 10, 10 }, {});
-    R.quad_t({ 20,0 }, { 30, 10 }, {});
-    R.submit(data);
+    if (false) {
+        R.qb.quad_t({ 0,0 }, { 10, 10 }, {});
+        R.qb.quad_t({ 20,0 }, { 30, 10 }, {});
+        R.submit_quads(&data);
 
-    data.m = translate({0,0,10,0});
-    R.quad_t({ 30,0 }, { 40, 10 }, {});
-    R.submit(data);
+        data.m = translate({ 0,0,10,0 });
+        R.qb.quad_t({ 30,0 }, { 40, 10 }, {});
+        R.submit_quads(&data);
 
-    data_second.m = rot_x_mat(angle_b);
-    R.quad_t({ 0,0 }, { 100,100 }, {});
-    R.submit(data_second);
+        data.m = rot_x_mat(angle_b);
+        R.qb.quad_t({ 0,0 }, { 100,100 }, {});
+        R.submit_quads(&data);
+    } else { // using static meshes
+        draw_data dd[3] = { data, data, data };
+        for (int i = 0; i < 3; i++) dd[i].ib = static_ib[i];
+        dd[1].m = translate({ 0,0,10,0 });
+        dd[2].m = rot_x_mat(angle_b);
+        R.submit(dd, 3);
+    }
 }
 }

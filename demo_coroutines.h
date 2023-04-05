@@ -91,8 +91,8 @@ void update(rend& R) {
     (use_coro ? do_coro(R) : do_switch(R));
 
     R.clear(C::BLACK);
-    R.quad_s(pos, size, C::RED);
+    R.qb.quad_s(pos, size, C::RED);
     f32 length = pre_charge_meter * pre_charge_meter * 1 /* length of the bar */;
-    R.quad({ -0.5,-1 }, { -0.5f + length, -0.75f }, C::BLUE);
+    R.qb.quad({ -0.5,-1 }, { -0.5f + length, -0.75f }, C::BLUE);
 }
 }

@@ -105,7 +105,8 @@ void rend::init() {
         }
     }
     glfwMakeContextCurrent(window);
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress); // todo: assert successfull
+    int glad_ok = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    ASSERT(glad_ok);
     if (ms)
         glEnable(GL_MULTISAMPLE);
     if (vsync)
@@ -141,11 +142,14 @@ void rend::init() {
     ImGui_ImplOpenGL3_Init("#version 330 core");
     progs = (u32*)alloc(max_progs * sizeof(u32));
     textures = (u32*)alloc(max_textures * sizeof(u32));
+    progs[curr_progs++] = shader(vs_quad, fs_quad);
+    dd = { {}, progs[0], 0 };
+    qb.init();
+}
+
+void quad_batcher::init() {
     quad_pos = (float*)alloc(max_quads * sizeof(float) * 2 * 4);
     quad_attr1 = (float*)alloc(max_quads * sizeof(float) * 4 * 4);
-
-    progs[curr_progs++] = shader(vs_quad, fs_quad);
-    default_quad_data = { progs[0], 0 };
 
     glGenVertexArrays(1, &vb_quad);
     glGenBuffers(1, &sb_quad_pos);
@@ -156,12 +160,12 @@ void rend::init() {
     glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
     glBufferData(GL_ARRAY_BUFFER, max_quads * sizeof(float) * 2 * 4, NULL, GL_DYNAMIC_DRAW);
 
-    u32 *quad_indices = (u32*)alloc(max_quads * sizeof(u32) * 6);
+    u32* quad_indices = (u32*)alloc(max_quads * sizeof(u32) * 6);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
     for (u32 i = 0; i < max_quads; i++) {
         u32 i_s = i * 6;
         u32 q = i * 4;
-        quad_indices[i_s] =     q + 0;
+        quad_indices[i_s] = q + 0;
         quad_indices[i_s + 1] = q + 1;
         quad_indices[i_s + 2] = q + 3;
         quad_indices[i_s + 3] = q + 1;
@@ -181,20 +185,109 @@ void rend::init() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glBindVertexArray(0);
-
 }
-void rend::cleanup() {
+
+void quad_batcher::cleanup() {
     glDeleteVertexArrays(1, &vb_quad);
     u32 buffers[] = { sb_quad_pos, sb_quad_attr1, sb_quad_indices };
     glDeleteBuffers(3, buffers);
+
+    dealloc(quad_pos);
+    dealloc(quad_attr1);
+}
+
+void quad_batcher::upload(indexed_buffer* ib) {
+    if (curr_quad_count) {
+        // upload quad vertex data
+        // glBindVertexArray(vb_quad); ?? todo: please check with multiple batchers
+        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
+        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
+        // indicies are preinited
+        if (ib) {
+            ib->id = vb_quad;
+            ib->vertex_count = curr_quad_count * 6;
+            ib->index_offset = 0;
+        }
+        curr_quad_count = 0;
+        saved_count = 0;
+    }
+    // todo: unbind?
+}
+
+indexed_buffer quad_batcher::next_ib() {
+    indexed_buffer ib = { vb_quad, saved_count * 6 * sizeof(int), vertex_count() - (saved_count * 6)};
+    saved_count = curr_quad_count;
+    return ib;
+}
+
+void quad_batcher::quad_a(v2 lb, v2 rt, v4 attr[4]) {
+    float vertices[] = {
+            rt.x, rt.y, // top right
+            rt.x, lb.y,  // bottom right
+            lb.x, lb.y,  // bottom left
+            lb.x, rt.y  // top left 
+    };
+    memcpy((u8*)quad_pos + curr_quad_count * sizeof(float) * 2 * 4, vertices, sizeof(vertices));
+    memcpy((u8*)quad_attr1 + curr_quad_count * sizeof(float) * 4 * 4, attr, sizeof(float) * 16);
+    // quad_indices are preinitialized since the indicies do not change
+    curr_quad_count++;
+    ASSERT(curr_quad_count <= max_quads);
+}
+void quad_batcher::quad(v2 lb, v2 rt, v4 c) { // 0-1
+    v4 attr[4] = { c, c, c, c };
+    quad_a(lb, rt, attr);
+}
+
+void quad_batcher::quad_t(v2 lb, v2 rt, v2 attr) {
+    v4 base_attr[4] = { {1, 1, attr.x, attr.y},
+                        {1, 0, attr.x, attr.y},
+                        {0, 0, attr.x, attr.y},
+                        {0, 1, attr.x, attr.y} };
+    quad_a(lb, rt, base_attr);
+}
+
+void quad_batcher::quad_s(v2 center, f32 size, v4 c) {
+    v2 lb = center - size / 2.f;
+    v2 rt = center + size / 2.f;
+    quad(lb, rt, c);
+}
+
+void rend::submit_quads(draw_data* dd) { // do you need pointer ? if you want to use indexed_buffer afterwards
+    qb.upload(&dd->ib);
+    submit(dd, 1);
+}
+
+void rend::submit(draw_data* dd, int dd_count) {
+    for (int i = 0; i < dd_count; i++) {
+        glUseProgram(dd[i].prog);
+        for (int t = 0; t < DATA_MAX_ELEM; t++) {
+            if (dd[i].tex) {
+                glActiveTexture(GL_TEXTURE0 + t);
+                glBindTexture(GL_TEXTURE_2D, dd[i].tex[t]);
+                char tex_name[] = "rend_t*"; tex_name[6] = '0' + i;
+                u32 loc = glGetUniformLocation(dd[i].prog, tex_name); // todo: when creating shader
+                glUniform1i(loc, i);
+            }
+        }
+        glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_m"), 1, true, &dd[i].m._0.x);
+        glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_v"), 1, true, &dd[i].v._0.x);
+        glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_p"), 1, true, &dd[i].p._0.x);
+
+        glBindVertexArray(dd[i].ib.id);
+        glDrawElements(GL_TRIANGLES, dd[i].ib.vertex_count, GL_UNSIGNED_INT, (void*)(u64)dd[i].ib.index_offset);
+    }
+    glBindVertexArray(0);
+}
+
+void rend::cleanup() {
     for (int i = 0; i < curr_progs; i++)
         glDeleteProgram(progs[i]);
 
-    glDeleteTextures(curr_tex, textures);
+    qb.cleanup();
 
-    // quad resources
-    dealloc(quad_pos);
-    dealloc(quad_attr1);
+    glDeleteTextures(curr_tex, textures);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -263,36 +356,6 @@ u32 rend::texture(u8* data, int w, int h, int channel_count) {
     return tex;
 }
 
-void rend::submit(draw_data data) {
-    if (curr_quad_count) {
-        // upload quad vertex data
-        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
-        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
-        // indicies are preinited
-        glUseProgram(data.prog);
-        for (int i = 0; i < DATA_MAX_ELEM; i++) {
-            if (data.tex) {
-                glActiveTexture(GL_TEXTURE0 + i);
-                glBindTexture(GL_TEXTURE_2D, data.tex[i]);
-                char tex_name[] = "rend_t*"; tex_name[6] = '0' + i;
-                u32 loc = glGetUniformLocation(data.prog, tex_name); // todo: when creating shader
-                glUniform1i(loc, i);
-            }
-        }
-        glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_m"), 1, true, &data.m._0.x);
-        glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_v"), 1, true, &data.v._0.x);
-        glUniformMatrix4fv(glGetUniformLocation(data.prog, "rend_p"), 1, true, &data.p._0.x);
-
-        // draw quads
-        glBindVertexArray(vb_quad);
-        glDrawElements(GL_TRIANGLES, curr_quad_count * 6, GL_UNSIGNED_INT, 0);
-        curr_quad_count = 0;
-    }
-    // todo: unbind
-}
-
 void rend::dispatch(dispatch_data data) {
     glUseProgram(data.prog);
     for (int i = 0; i < DATA_MAX_ELEM; i++) {
@@ -305,8 +368,9 @@ void rend::ssbo_barrier() {
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void rend::present() { // todo: separate quad drawing into different function
-    submit(default_quad_data);
+void rend::present() {
+    if (qb.curr_quad_count)// default quad_batcher assumed to handle default quads
+        submit_quads(&dd);
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -372,44 +436,6 @@ v2 rend::mouse_norm() {
 void rend::clear(v4 c) {
     glClear(GL_COLOR_BUFFER_BIT | (depth_test ? GL_DEPTH_BUFFER_BIT : 0));
     glClearColor(c.x, c.y, c.z, c.w); // why it's under glClear?
-}
-
-void rend::quad_a(v2 lb, v2 rt, v4 attr[4]) {
-    float vertices[] = {
-            rt.x, rt.y, // top right
-            rt.x, lb.y,  // bottom right
-            lb.x, lb.y,  // bottom left
-            lb.x, rt.y  // top left 
-    };
-    float colors[] = {
-            attr[0].x, attr[0].y, attr[0].z, attr[0].w,
-            attr[1].x, attr[1].y, attr[1].z, attr[1].w,
-            attr[2].x, attr[2].y, attr[2].z, attr[2].w,
-            attr[3].x, attr[3].y, attr[3].z, attr[3].w,
-    };
-    memcpy((u8*)quad_pos + curr_quad_count * sizeof(float) * 2 * 4, vertices, sizeof(vertices));
-    memcpy((u8*)quad_attr1 + curr_quad_count * sizeof(float) * 4 * 4, colors, sizeof(colors));
-    // quad_indices are preinitialized since the indicies do not change
-    curr_quad_count++;
-    ASSERT(curr_quad_count <= max_quads);
-}
-void rend::quad(v2 lb, v2 rt, v4 c) { // 0-1
-    v4 attr[4] = { c, c, c, c };
-    quad_a(lb, rt, attr);
-}
-
-void rend::quad_t(v2 lb, v2 rt, v2 attr) {
-    v4 base_attr[4] = { {1, 1, attr.x, attr.y},
-                        {1, 0, attr.x, attr.y}, 
-                        {0, 0, attr.x, attr.y},
-                        {0, 1, attr.x, attr.y} };
-    quad_a(lb, rt, base_attr);
-}
-
-void rend::quad_s(v2 center, f32 size, v4 c) {
-    v2 lb = center - size / 2.f;
-    v2 rt = center + size / 2.f;
-    quad(lb, rt, c);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {

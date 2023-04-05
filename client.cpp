@@ -223,7 +223,7 @@ int main(void) {
         client_update(R, cs);
         R.clear({ 0.2f, 0.f, 0.f, 0.f });
         draw_rts(R, cs, tz_ef);
-        R.submit(dd);
+        R.submit_quads(&dd);
 
         ImGui::End();
         R.present();
