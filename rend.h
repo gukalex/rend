@@ -18,6 +18,17 @@ enum {
 }
 
 constexpr u32 DATA_MAX_ELEM = 8; // todo: just size + pointers
+enum uniform_type {
+    UNIFORM_UINT,
+    UNIFORM_FLOAT,
+    UNIFORM_VEC4,
+    // uniform matrix?
+};
+struct uniform {
+    const char* name; // todo: cache location
+    uniform_type type;
+    void* data;
+};
 struct indexed_buffer {
     u32 id; //vao...?
     u32 index_offset; // num of indices * sizeof(int)
@@ -27,7 +38,8 @@ struct draw_data {
     indexed_buffer ib;
     u32 prog; // todo: index and not direct opengl handle?
     u32 tex[DATA_MAX_ELEM] = {};
-    m4 m = identity(), v = identity(), p = identity();
+    m4 m = identity(), v = identity(), p = identity(); // todo: make a part of uni?
+    uniform uni[DATA_MAX_ELEM] = {};
     // custom uniforms
 };
 
@@ -35,6 +47,7 @@ struct dispatch_data {
     u32 prog = 0;
     u32 x = 1, y = 1, z = 1;
     u32 ssbo[DATA_MAX_ELEM] = {};
+    uniform uni[DATA_MAX_ELEM] = {};
     //u32 ubo[DATA_MAX_ELEM] = {};
     // todo: image
 };
@@ -69,6 +82,8 @@ struct quad_batcher {
     u32 vertex_count() { return curr_quad_count * 6; }
     void upload(indexed_buffer* ib);
 
+    void quad_manual(v2 lb, v2 rt, f32* attr, u32* cur_quad);
+
     void quad(v2 lb, v2 rt, v4 c); // 0-1
     void quad_a(v2 lb, v2 rt, v4 attr[4]);
     void quad_t(v2 lb, v2 rt, v2 attr);
@@ -79,6 +94,7 @@ struct rend {
     iv2 wh = {1024, 1024};
     bool vsync = true;  // pre-init parameter, todo: make init parameter instead
     bool ms = true;     // multisample
+    bool fs = false; // fullscreen
     bool depth_test = true; // todo: put into draw state
     int debug = 1; // 1 - debug messages, 2 - GL_DEBUG_OUTPUT_SYNCHRONOUS; todo: enum debug_level
     bool save_and_load_win_params = true;
@@ -149,7 +165,7 @@ struct rend {
     u32 texture(const char* filename);
     u32 ssbo(u64 size, void* init_data = 0, bool init_with_value = false, u32 default_u32_value = 0);
     void free_resources(resources res);
-    void* map(u32 buffer, u64 offset, u64 size, map_type flags);
+    void* map(u32 buffer, u64 offset, u64 size, u32 flags);
     void unmap(u32 buffer);
 
     void submit_quads(draw_data *dd); // updates indexed_buffer

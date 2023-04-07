@@ -4,6 +4,7 @@
 #ifndef ARSIZE
 #define ARSIZE(a) (sizeof(a)/sizeof(a[0]))
 #endif
+#define ALIGN_UP(x, a) ((x) + ((a) - 1)) & ~((a) - 1)
 #define CONCAT(x, y) x##y
 #define CONCAT_LINE_PREPROC(x, y) CONCAT(x, y)
 #define CONCAT_LINE(x) CONCAT_LINE_PREPROC(x, __LINE__)
@@ -37,7 +38,7 @@ struct coroutine { u32 line; i64 time; };
 
 struct v4 { float x, y, z, w; 
 v4 operator+=(v4 l) { x += l.x; y += l.y; z += l.z; w += l.w; return *this; }; // w?
-v4 operator-=(v4 l) { x -= l.x; y -= l.y; z -= l.z; w -= l.w; return *this; }; // w?
+v4 operator-=(v4 l) { x -= l.x; y -= l.y; z -= l.z; w -= l.w; return *this; }; // w
 }; struct v4a { float val[4]; };
 inline v4 operator/(v4 r, float f) { return { r.x / f, r.y / f, r.z / f, r.w / f }; };
 inline v4 operator-(v4 r, v4 l) { return { r.x - l.x, r.y - l.y, r.z - l.z, r.w - l.w}; }; // w?
@@ -46,7 +47,7 @@ inline v4 operator+(v4 r, v4 l) { return { r.x + l.x, r.y + l.y, r.z + l.z, r.w 
 inline v4 operator-(v4 r) { return { -r.x, -r.y, -r.z, -r.w }; }; // w?
 inline v4 operator*(v4 r, f32 l) { return { r.x * l, r.y * l, r.z * l, r.w * l }; }; // w?
 
-struct v2 { float x, y; 
+struct v2 { float x, y;
 v2 operator+=(v2 l) { x += l.x; y += l.y; return *this; };
 v2 operator-=(v2 l) { x -= l.x; y -= l.y; return *this; };
 v2 operator*=(v2 l) { x *= l.x; y *= l.y; return *this; };
@@ -68,6 +69,7 @@ inline v2 operator-(v2 r, float f) { return { r.x - f, r.y - f }; };
 inline v2 operator/(v2 r, float f) { return { r.x / f, r.y / f }; };
 
 struct iv2 { int x, y; }; inline v2 to_v2(iv2 v) { return { (f32)v.x, (f32)v.y }; };
+inline v2 to_v2(v4 v) { return { v.x, v.y }; };
 
 struct m4 { v4 _0, _1, _2, _3; }; struct m4a { v4a val[4]; };
 inline m4 operator*(const m4& aa, const m4& bb) {

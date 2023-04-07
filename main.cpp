@@ -41,6 +41,7 @@ int main(void) {
     defer{ set_print_options({0}); };
     R.depth_test = true; // that doesn't work well with textured quads with alpha and requires discard in the shader, disable for easier setup (or make it a part of draw_data)
     R.ms = false;
+    R.debug = 0;
     R.wh = { 1024, 1024 };
     R.vsync = false;
     R.qb.max_quads = 2000000;

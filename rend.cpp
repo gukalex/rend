@@ -90,7 +90,7 @@ void rend::init() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     if (ms)
         glfwWindowHint(GLFW_SAMPLES, 4);
-    window = glfwCreateWindow(wh.x, wh.y, window_name, NULL, NULL);
+    window = glfwCreateWindow(wh.x, wh.y, window_name, (fs ? glfwGetPrimaryMonitor() : NULL), NULL);
     if (save_and_load_win_params) {
         buffer rend_file = read_file(REND_INI_FILENAME);
         if (rend_file.data) {
@@ -201,9 +201,11 @@ void quad_batcher::upload(indexed_buffer* ib) {
         // upload quad vertex data
         // glBindVertexArray(vb_quad); ?? todo: please check with multiple batchers
         glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
+        //glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
+        glBufferData(GL_ARRAY_BUFFER, curr_quad_count * 4 * sizeof(float) * 2, quad_pos, GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
+        //glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
+        glBufferData(GL_ARRAY_BUFFER, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1, GL_DYNAMIC_DRAW);
         // indicies are preinited
         if (ib) {
             ib->id = vb_quad;
@@ -220,6 +222,19 @@ indexed_buffer quad_batcher::next_ib() {
     indexed_buffer ib = { vb_quad, saved_count * 6 * sizeof(int), vertex_count() - (saved_count * 6)};
     saved_count = curr_quad_count;
     return ib;
+}
+
+void quad_batcher::quad_manual(v2 lb, v2 rt, f32* attr, u32* cur_quad) {
+    float vertices[] = {
+            rt.x, rt.y, // top right
+            rt.x, lb.y,  // bottom right
+            lb.x, lb.y,  // bottom left
+            lb.x, rt.y  // top left 
+    };
+    memcpy((u8*)quad_pos + (*cur_quad) * sizeof(float) * 2 * 4, vertices, sizeof(vertices));
+    memcpy((u8*)quad_attr1 + (*cur_quad) * sizeof(float) * 4 * 4, attr, sizeof(float) * 16);
+    // quad_indices are preinitialized since the indicies do not change
+    (*cur_quad)++;
 }
 
 void quad_batcher::quad_a(v2 lb, v2 rt, v4 attr[4]) {
@@ -259,6 +274,19 @@ void rend::submit_quads(draw_data* dd) { // do you need pointer ? if you want to
     submit(dd, 1);
 }
 
+static void uniforms(u32 prog, uniform *uni, int size) {
+    for (int i = 0; i < size; i++) {
+        if (uni[i].name) {
+            int loc = glGetUniformLocation(prog, uni[i].name);
+            switch (uni[i].type) {
+            case UNIFORM_UINT: glUniform1ui(loc, *(u32*)uni[i].data); break;
+            case UNIFORM_FLOAT: glUniform1f(loc, *(f32*)uni[i].data); break;
+            case UNIFORM_VEC4: glUniform4fv(loc, 1, (f32*)uni[i].data); break;
+            }
+        }
+    }
+}
+
 void rend::submit(draw_data* dd, int dd_count) {
     for (int i = 0; i < dd_count; i++) {
         glUseProgram(dd[i].prog);
@@ -274,7 +302,7 @@ void rend::submit(draw_data* dd, int dd_count) {
         glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_m"), 1, true, &dd[i].m._0.x);
         glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_v"), 1, true, &dd[i].v._0.x);
         glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_p"), 1, true, &dd[i].p._0.x);
-
+        uniforms(dd[i].prog, dd[i].uni, DATA_MAX_ELEM);
         glBindVertexArray(dd[i].ib.id);
         glDrawElements(GL_TRIANGLES, dd[i].ib.vertex_count, GL_UNSIGNED_INT, (void*)(u64)dd[i].ib.index_offset);
     }
@@ -330,7 +358,7 @@ void rend::free_resources(resources res) {
     glDeleteTextures(DATA_MAX_ELEM, res.texture);
 }
 
-void* rend::map(u32 buffer, u64 offset, u64 size, map_type flags) {
+void* rend::map(u32 buffer, u64 offset, u64 size, u32 flags) {
     ASSERT(GL_MAP_READ_BIT == MAP_READ && GL_MAP_WRITE_BIT == MAP_WRITE);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer); // todo: type parameter
     void* data = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, offset, size, flags);
@@ -356,8 +384,10 @@ u32 rend::texture(u8* data, int w, int h, int channel_count) {
     return tex;
 }
 
+
 void rend::dispatch(dispatch_data data) {
     glUseProgram(data.prog);
+    uniforms(data.prog, data.uni, DATA_MAX_ELEM);
     for (int i = 0; i < DATA_MAX_ELEM; i++) {
         if (data.ssbo[i]) glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, data.ssbo[i]); // todo: unbind
     }
