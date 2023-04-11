@@ -147,22 +147,52 @@ void rend::init() {
     qb.init();
 }
 
-void quad_batcher::init() {
-    quad_pos = (float*)alloc(max_quads * sizeof(float) * 2 * 4);
-    quad_attr1 = (float*)alloc(max_quads * sizeof(float) * 4 * 4);
+static u32 gl_type(attrib_type at) {
+    switch (at) {
+    case AT_FLOAT: return GL_FLOAT;
+    case AT_UBYTE: return GL_UNSIGNED_BYTE;
+    case AT_HALF: return GL_HALF_FLOAT;
+    case AT_UINT: return GL_UNSIGNED_INT;
+    }
+    ASSERT(false);
+    return AT_FLOAT;
+}
+static u32 gl_size(attrib_type at) {
+    switch (at) {
+    case AT_FLOAT: return sizeof(float);
+    case AT_UBYTE: return 1;
+    case AT_HALF: return 2;
+    case AT_UINT: return sizeof(int);
+    }
+    ASSERT(false);
+    return 4;
+}
 
-    glGenVertexArrays(1, &vb_quad);
-    glGenBuffers(1, &sb_quad_pos);
-    glGenBuffers(1, &sb_quad_indices);
-    glGenBuffers(1, &sb_quad_attr1);
-    glBindVertexArray(vb_quad);
+void init_vertex_buffer(vertex_buffer *vb) {
+    glGenVertexArrays(1, &vb->ib.id);
+    glGenBuffers(1, &vb->ib.index_buf);
+    for (int i = 0; i < vb->ab_count; i++)
+        glGenBuffers(1, &vb->ab[i].id);
+    glBindVertexArray(vb->ib.id);
 
-    glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
-    glBufferData(GL_ARRAY_BUFFER, max_quads * sizeof(float) * 2 * 4, NULL, GL_DYNAMIC_DRAW);
+    for (int i = 0; i < vb->ab_count; i++) {
+        u8 size_attr = gl_size(vb->ab[i].type) * vb->ab[i].num_comp;
+        u64 size = vb->elem_num * size_attr;
+        glBindBuffer(GL_ARRAY_BUFFER, vb->ab[i].id);
+        glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW); //?
+        glVertexAttribPointer(i, vb->ab[i].num_comp, gl_type(vb->ab[i].type), /*normalize?*/ vb->ab[i].normalize, /*stride?*/size_attr, (void*)0);
+        glEnableVertexAttribArray(i);
+    }
 
-    u32* quad_indices = (u32*)alloc(max_quads * sizeof(u32) * 6);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sb_quad_indices);
-    for (u32 i = 0; i < max_quads; i++) {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->ib.index_buf);
+    glBindVertexArray(0);
+}
+
+void init_quad_indicies(u32 index_buf, u32 quads) {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buf);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * quads * 6, NULL, GL_STATIC_DRAW);
+    u32* quad_indices = (u32*)map(index_buf, 0, sizeof(u32) * quads * 6, MAP_WRITE);
+    for (u32 i = 0; i < quads; i++) {
         u32 i_s = i * 6;
         u32 q = i * 4;
         quad_indices[i_s] = q + 0;
@@ -171,27 +201,38 @@ void quad_batcher::init() {
         quad_indices[i_s + 3] = q + 1;
         quad_indices[i_s + 4] = q + 2;
         quad_indices[i_s + 5] = q + 3;
+
+        // top right     0
+        // bottom right  1
+        // bottom left   2
+        // top left      3
     }
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, max_quads * sizeof(u32) * 6, quad_indices, GL_STATIC_DRAW);
-    dealloc(quad_indices);
+    unmap(index_buf);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);//?
+}
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+void cleanup_vertex_buffer(vertex_buffer* vb) {
+    glDeleteVertexArrays(1, &vb->ib.id);
+    u32 buffers[DATA_MAX_ELEM] = {};
+    for (int i = 0; i < vb->ab_count; i++) buffers[i] = vb->ab[i].id;
+    glDeleteBuffers(DATA_MAX_ELEM, buffers);
+}
 
-    glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
-    glBufferData(GL_ARRAY_BUFFER, max_quads * sizeof(float) * 4 * 4, NULL, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+void quad_batcher::init() {
+    quad_pos = (float*)alloc(max_quads * sizeof(float) * 2 * 4);
+    quad_attr1 = (float*)alloc(max_quads * sizeof(float) * 4 * 4);
+    
+    vb = { {}, max_quads * 4, 2, {
+        {0, AT_FLOAT, 2},
+        {0, AT_FLOAT, 4}
+    } };
 
-    glBindVertexArray(0);
+    init_vertex_buffer(&vb);
+    init_quad_indicies(vb.ib.index_buf, max_quads);
 }
 
 void quad_batcher::cleanup() {
-    glDeleteVertexArrays(1, &vb_quad);
-    u32 buffers[] = { sb_quad_pos, sb_quad_attr1, sb_quad_indices };
-    glDeleteBuffers(3, buffers);
-
+    cleanup_vertex_buffer(&vb);
     dealloc(quad_pos);
     dealloc(quad_attr1);
 }
@@ -200,17 +241,16 @@ void quad_batcher::upload(indexed_buffer* ib) {
     if (curr_quad_count) {
         // upload quad vertex data
         // glBindVertexArray(vb_quad); ?? todo: please check with multiple batchers
-        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_pos);
+        glBindBuffer(GL_ARRAY_BUFFER, vb.ab[POS].id);
         //glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 2, quad_pos);
-        glBufferData(GL_ARRAY_BUFFER, curr_quad_count * 4 * sizeof(float) * 2, quad_pos, GL_DYNAMIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, sb_quad_attr1);
+        glBufferData(GL_ARRAY_BUFFER, curr_quad_count * 4 * sizeof(float) * 2, quad_pos, GL_DYNAMIC_DRAW); //static?
+        glBindBuffer(GL_ARRAY_BUFFER, vb.ab[ATTR].id);
         //glBufferSubData(GL_ARRAY_BUFFER, 0, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1);
-        glBufferData(GL_ARRAY_BUFFER, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, curr_quad_count * 4 * sizeof(float) * 4, quad_attr1, GL_DYNAMIC_DRAW); //static?
         // indicies are preinited
         if (ib) {
-            ib->id = vb_quad;
+            *ib = vb.ib;
             ib->vertex_count = curr_quad_count * 6;
-            ib->index_offset = 0;
         }
         curr_quad_count = 0;
         saved_count = 0;
@@ -219,7 +259,7 @@ void quad_batcher::upload(indexed_buffer* ib) {
 }
 
 indexed_buffer quad_batcher::next_ib() {
-    indexed_buffer ib = { vb_quad, saved_count * 6 * sizeof(int), vertex_count() - (saved_count * 6)};
+    indexed_buffer ib = { vb.ib.id, saved_count * 6 * sizeof(int), vertex_count() - (saved_count * 6), vb.ib.index_buf };
     saved_count = curr_quad_count;
     return ib;
 }
@@ -278,10 +318,12 @@ static void uniforms(u32 prog, uniform *uni, int size) {
     for (int i = 0; i < size; i++) {
         if (uni[i].name) {
             int loc = glGetUniformLocation(prog, uni[i].name);
+            if (loc == -1) continue;
             switch (uni[i].type) {
             case UNIFORM_UINT: glUniform1ui(loc, *(u32*)uni[i].data); break;
             case UNIFORM_FLOAT: glUniform1f(loc, *(f32*)uni[i].data); break;
             case UNIFORM_VEC4: glUniform4fv(loc, 1, (f32*)uni[i].data); break;
+            case UNIFORM_MAT4: glUniformMatrix4fv(loc, 1, true, (f32*)uni[i].data); break;
             }
         }
     }
@@ -299,9 +341,12 @@ void rend::submit(draw_data* dd, int dd_count) {
                 glUniform1i(loc, i);
             }
         }
-        glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_m"), 1, true, &dd[i].m._0.x);
-        glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_v"), 1, true, &dd[i].v._0.x);
-        glUniformMatrix4fv(glGetUniformLocation(dd[i].prog, "rend_p"), 1, true, &dd[i].p._0.x);
+        uniform mat_uni[] = { 
+            {"rend_m", UNIFORM_MAT4, &dd[i].m}, 
+            {"rend_v", UNIFORM_MAT4, &dd[i].v},
+            {"rend_p", UNIFORM_MAT4, &dd[i].p}
+        };
+        uniforms(dd[i].prog, mat_uni, ARSIZE(mat_uni));
         uniforms(dd[i].prog, dd[i].uni, DATA_MAX_ELEM);
         glBindVertexArray(dd[i].ib.id);
         glDrawElements(GL_TRIANGLES, dd[i].ib.vertex_count, GL_UNSIGNED_INT, (void*)(u64)dd[i].ib.index_offset);
@@ -358,16 +403,21 @@ void rend::free_resources(resources res) {
     glDeleteTextures(DATA_MAX_ELEM, res.texture);
 }
 
-void* rend::map(u32 buffer, u64 offset, u64 size, u32 flags) {
+void* map(u32 buffer, u64 offset, u64 size, u32 flags) {
     ASSERT(GL_MAP_READ_BIT == MAP_READ && GL_MAP_WRITE_BIT == MAP_WRITE);
+    if ((flags & MAP_WRITE) && ~(flags & MAP_READ))
+        flags |= GL_MAP_INVALIDATE_BUFFER_BIT;
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer); // todo: type parameter
     void* data = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, offset, size, flags);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); //?
     return data;
 }
 
-void rend::unmap(u32 buffer) {
+void unmap(u32 buffer) {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    ASSERT(glGetError() == GL_NO_ERROR);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); //?
 }
 
 u32 rend::texture(u8* data, int w, int h, int channel_count) {

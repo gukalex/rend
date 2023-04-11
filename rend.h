@@ -22,25 +22,48 @@ enum uniform_type {
     UNIFORM_UINT,
     UNIFORM_FLOAT,
     UNIFORM_VEC4,
-    // uniform matrix?
+    UNIFORM_MAT4
 };
 struct uniform {
     const char* name; // todo: cache location
     uniform_type type;
     void* data;
 };
-struct indexed_buffer {
+struct indexed_buffer { // just vao?
     u32 id; //vao...?
     u32 index_offset; // num of indices * sizeof(int)
     u32 vertex_count; // num of triangles * 3
+    u32 index_buf; // actual indicies // todo: move to vertex_buffer?
 };
+enum attrib_type {
+    AT_FLOAT,
+    AT_HALF,
+    AT_UBYTE,
+    AT_UINT
+};
+struct attrib_buffer { // todo: layouts, for now each buffer is separate
+    u32 id;
+    // size calculated automatically
+    attrib_type type;
+    u8 num_comp; // 1-4
+    bool normalize;
+};
+struct vertex_buffer {
+    indexed_buffer ib; // vao
+    u32 elem_num; // number of elements in the buffer (like quad_count * 4)
+    u8 ab_count; // 0 - 8
+    attrib_buffer ab[DATA_MAX_ELEM] = {};
+};
+void init_vertex_buffer(vertex_buffer* vb);
+void init_quad_indicies(u32 index_buf, u32 quads);
+void cleanup_vertex_buffer(vertex_buffer* vb);
 struct draw_data {
     indexed_buffer ib;
     u32 prog; // todo: index and not direct opengl handle?
     u32 tex[DATA_MAX_ELEM] = {};
     m4 m = identity(), v = identity(), p = identity(); // todo: make a part of uni?
     uniform uni[DATA_MAX_ELEM] = {};
-    // custom uniforms
+    u32 ssbo[DATA_MAX_ELEM] = {};
 };
 
 struct dispatch_data {
@@ -58,18 +81,13 @@ struct resources {
     u32 texture[DATA_MAX_ELEM];
 };
 
-enum map_type {
-    MAP_READ = 1, // GL_MAP_READ_BIT
-    MAP_WRITE = 2 // GL_MAP_WRITE_BIT
-};
-
 struct quad_batcher {
+    static constexpr u32 POS = 0;     // attribute buffer indices
+    static constexpr u32 ATTR = 1;    //
+    
     u32 max_quads = 100'000; // todo: revise or make the use of it more explicit 
 
-    u32 vb_quad;
-    u32 sb_quad_pos;
-    u32 sb_quad_attr1;
-    u32 sb_quad_indices;
+    vertex_buffer vb = {};
     float* quad_pos; // vec2
     float* quad_attr1; // vec4
     u32 curr_quad_count = 0;
@@ -89,6 +107,13 @@ struct quad_batcher {
     void quad_t(v2 lb, v2 rt, v2 attr);
     void quad_s(v2 center, f32 size, v4 c);
 };
+
+enum map_type {
+    MAP_READ = 1, // GL_MAP_READ_BIT
+    MAP_WRITE = 2, // GL_MAP_WRITE_BIT
+};
+void* map(u32 buffer, u64 offset, u64 size, u32 flags);
+void unmap(u32 buffer);
 
 struct rend {
     iv2 wh = {1024, 1024};
@@ -165,10 +190,8 @@ struct rend {
     u32 texture(const char* filename);
     u32 ssbo(u64 size, void* init_data = 0, bool init_with_value = false, u32 default_u32_value = 0);
     void free_resources(resources res);
-    void* map(u32 buffer, u64 offset, u64 size, u32 flags);
-    void unmap(u32 buffer);
 
-    void submit_quads(draw_data *dd); // updates indexed_buffer
+    void submit_quads(draw_data *dd); // modifies indexed_buffer
     void submit(draw_data* dd, int dd_count);
 };
 

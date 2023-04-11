@@ -5,8 +5,8 @@
 #include <GLFW/glfw3.h>
 namespace demo_qube {
 i64 tstart;
-draw_data data = {};
-quad_batcher static_builder = {};
+draw_data dd[3] = {};
+//quad_batcher quad_mesh = {};
 indexed_buffer static_ib[3] = {};
 f32 angle = 0, angle_b = PI/2, cam_speed = 100;
 v4 cam_pos = {0,5,50}, cam_fwd = {0, 0, -1}, cam_up = {0,1,0};
@@ -15,34 +15,73 @@ bool last_ctrl = false; // if ctrl was pressed
 v2 prev_xy = {}; // last mouse pos
 f32 mouse_sens = 0.001f; // radian per pixel?
 f32 yaw = -PI/2, pitch = 0.f;
+m4 mvp[3] = {};
+
+struct mapped_mesh { v2* pos; u32* col; u32 curr_q; };
+void push_quad(mapped_mesh* m, v2 lb, v2 rt, u32* c4) {
+    float vertices[] = {
+            rt.x, rt.y, // top right
+            rt.x, lb.y,  // bottom right
+            lb.x, lb.y,  // bottom left
+            lb.x, rt.y  // top left 
+    };
+    memcpy((u8*)m->pos + m->curr_q * sizeof(v2) * 4, vertices, sizeof(vertices));
+    memcpy((u8*)m->col + m->curr_q * sizeof(u32) * 4, c4, sizeof(u32) * 4);
+    m->curr_q++;
+}
+indexed_buffer next_ib(indexed_buffer ib, u32* prev_q, u32 curr_q) {
+    u32 offset = (*prev_q) * 6 * sizeof(int);
+    indexed_buffer new_ib = { ib.id, offset, (curr_q - (*prev_q)) * 6, ib.index_buf };
+    *prev_q = curr_q;
+    return new_ib;
+}
+
 void init(rend& R) {
     tstart = tnow();
-    if (!data.prog) {
-        data.prog = R.shader(R.vs_quad, R"(
-        #version 450 core
+    if (!dd[0].prog) {
+        u32 prog = R.shader(R"(#version 450 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec4 aAttr;
+        out vec4 vAttr;
+        uniform mat4 mvp;
+        void main() {
+           gl_Position = mvp * vec4(aPos, 0.0, 1.0);
+           vAttr = aAttr;
+        })", R"(#version 450 core
         in vec4 vAttr;
         out vec4 FragColor;
         uniform sampler2D rend_t0;
         void main() {
-            vec2 uv = vAttr.xy;
-            FragColor.rgba = texture(rend_t0, uv).rgba;
-            if (FragColor.a < 0.1) discard; // alpha test
+            FragColor.rgba = vAttr;//texture(rend_t0, uv).rgba;
+            //if (FragColor.a < 0.1) discard; // alpha test
         })");
-        data.tex[0] = R.texture("pepe.png");   
+        u32 tex = R.texture("pepe.png");
 
-        static_builder.max_quads = 4;
-        static_builder.init();
+        u32 mesh_quads = 4;
+        vertex_buffer vb = { {}, mesh_quads * 4, 2, {
+            {0, AT_FLOAT, 2}, // todo: 3
+            {0, AT_UBYTE, 4, true} // color (u32)
+        } };
+        init_vertex_buffer(&vb);
+        init_quad_indicies(vb.ib.index_buf, mesh_quads);
+        mapped_mesh m = {};
+        m.pos = (v2*)map(vb.ab[0].id, 0, sizeof(v2) * mesh_quads * 4, MAP_WRITE); defer{ unmap(vb.ab[0].id); };
+        m.col = (u32*)map(vb.ab[1].id, 0, sizeof(u32) * mesh_quads * 4, MAP_WRITE); defer{ unmap(vb.ab[1].id); };
+        u32 prev_q = 0;
+        u32 c[] = { 0xFF00FFFF,0xFF0000FF, 0xFF00FF00, 0xFFFF0000};
+        push_quad(&m, { 0,0 }, { 10, 10 }, c);
+        push_quad(&m, { 20,0 }, { 30, 10 }, c);
+        static_ib[0] = next_ib(vb.ib, &prev_q, m.curr_q);
+        push_quad(&m, { 30,0 }, { 40, 10 }, c);
+        static_ib[1] = next_ib(vb.ib, &prev_q, m.curr_q);
+        push_quad(&m, { 0,0 }, { 100,100 }, c);
+        static_ib[2] = next_ib(vb.ib, &prev_q, m.curr_q);
 
-        static_builder.quad_t({ 0,0 }, { 10, 10 }, {});
-        static_builder.quad_t({ 20,0 }, { 30, 10 }, {});
-        static_ib[0] = static_builder.next_ib();
-        static_builder.quad_t({ 30,0 }, { 40, 10 }, {});
-        static_ib[1] = static_builder.next_ib();
-        static_builder.quad_t({ 0,0 }, { 100,100 }, {});
-        static_ib[2] = static_builder.next_ib();
-
-        static_builder.upload(nullptr);
-        // cleanup static_builder cpu mem?
+        for (int i = 0; i < ARSIZE(dd); i++) { 
+            dd[i].prog = prog; dd[i].tex[0] = tex; 
+            dd[i].ib = static_ib[i];
+            dd[i].uni[0] = { "mvp", UNIFORM_MAT4, &mvp[i] };
+        }
     }
 }
 m4 rot_mat(f32 a) { return {
@@ -107,30 +146,17 @@ void update(rend& R) { using namespace ImGui;
     }
 
     float x_ar = R.wh.x / (float)R.wh.y;
-    data.p = use_orth ? ortho(-500.f, 500.f, -500.f, 500.f, 0.1f, 500.f) : perspective(PI/4, x_ar, 0.01f, 500.f);
-    data.v = look_at(cam_pos, cam_up, at);
-    data.m = rot_x_mat(angle);
+    m4 p = use_orth ? ortho(-500.f, 500.f, -500.f, 500.f, 0.1f, 500.f) : perspective(PI/4, x_ar, 0.01f, 500.f);
+    m4 v = look_at(cam_pos, cam_up, at);
+    m4 m[3] = {
+        rot_x_mat(angle),
+        translate({ 0,0,10,0 }),
+        rot_x_mat(angle_b)
+    };
+
+    for (int i = 0; i < ARSIZE(dd); i++) mvp[i] = p * v * m[i];
 
     R.clear(C::BLACK);
-
-    if (false) {
-        R.qb.quad_t({ 0,0 }, { 10, 10 }, {});
-        R.qb.quad_t({ 20,0 }, { 30, 10 }, {});
-        R.submit_quads(&data);
-
-        data.m = translate({ 0,0,10,0 });
-        R.qb.quad_t({ 30,0 }, { 40, 10 }, {});
-        R.submit_quads(&data);
-
-        data.m = rot_x_mat(angle_b);
-        R.qb.quad_t({ 0,0 }, { 100,100 }, {});
-        R.submit_quads(&data);
-    } else { // using static meshes
-        draw_data dd[3] = { data, data, data };
-        for (int i = 0; i < 3; i++) dd[i].ib = static_ib[i];
-        dd[1].m = translate({ 0,0,10,0 });
-        dd[2].m = rot_x_mat(angle_b);
-        R.submit(dd, 3);
-    }
+    R.submit(dd, ARSIZE(dd));
 }
 }

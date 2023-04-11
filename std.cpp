@@ -107,6 +107,8 @@ void _assert(const char* func, int line, const char* file) {
         fwrite(out_buf, 1, msg_size, f);
         fclose(f);
     }
+    if (g_print_file)
+        fclose(g_print_file);
     //#ifdef _WIN32
     //__debugbreak();
     //#endif

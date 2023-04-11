@@ -55,11 +55,11 @@ void update(rend& R) {
         if (use_compute) {
             R.dispatch({ compute, (u32)group_size, 1, 1, {input_buffer, output_buffer} });
             R.ssbo_barrier(); // Wait for the compute shader to finish
-            u32* out = (u32*)R.map(output_buffer, 0, group_size * sizeof(u32), MAP_READ);
+            u32* out = (u32*)map(output_buffer, 0, group_size * sizeof(u32), MAP_READ);
             i64 sum_start = tnow();
             for (u32 i = 0; i < group_size; i++) res += out[i];
             sum_diff = tnow() - sum_start;
-            R.unmap(output_buffer);
+            unmap(output_buffer);
         } else {
             for (u64 i = 0; i < count; i++) res += cpu_arr[i];
         }

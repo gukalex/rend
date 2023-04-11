@@ -41,10 +41,10 @@ int main(void) {
     defer{ set_print_options({0}); };
     R.depth_test = true; // that doesn't work well with textured quads with alpha and requires discard in the shader, disable for easier setup (or make it a part of draw_data)
     R.ms = false;
-    R.debug = 0;
+    R.debug = 1;
     R.wh = { 1024, 1024 };
     R.vsync = false;
-    R.qb.max_quads = 2000000;
+    R.qb.max_quads = 100000;
     R.save_and_load_win_params = true;
     #ifdef _WIN32
         // todo: if dpi is high
@@ -57,7 +57,7 @@ int main(void) {
     #endif
     R.init();
     
-    int curr_demo = 1;
+    int curr_demo = 3;
     demos[curr_demo].init(R);
 
     i64 timer_start = tnow();
