@@ -259,7 +259,7 @@ void quad_batcher::upload(indexed_buffer* ib) {
 }
 
 indexed_buffer quad_batcher::next_ib() {
-    indexed_buffer ib = { vb.ib.id, saved_count * 6 * sizeof(int), vertex_count() - (saved_count * 6), vb.ib.index_buf };
+    indexed_buffer ib = { vb.ib.id, saved_count * 6 * (u32)sizeof(int), vertex_count() - (saved_count * 6), vb.ib.index_buf };
     saved_count = curr_quad_count;
     return ib;
 }
@@ -333,12 +333,12 @@ void rend::submit(draw_data* dd, int dd_count) {
     for (int i = 0; i < dd_count; i++) {
         glUseProgram(dd[i].prog);
         for (int t = 0; t < DATA_MAX_ELEM; t++) {
-            if (dd[i].tex) {
+            if (dd[i].tex[t]) {
                 glActiveTexture(GL_TEXTURE0 + t);
                 glBindTexture(GL_TEXTURE_2D, dd[i].tex[t]);
-                char tex_name[] = "rend_t*"; tex_name[6] = '0' + i;
+                char tex_name[] = "rend_t*"; tex_name[6] = '0' + t;
                 u32 loc = glGetUniformLocation(dd[i].prog, tex_name); // todo: when creating shader
-                glUniform1i(loc, i);
+                glUniform1i(loc, t);
             }
         }
         uniform mat_uni[] = { 

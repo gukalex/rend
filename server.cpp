@@ -370,6 +370,7 @@ void rts_update(float fd) {  // todo: i64 fd and always static
 void start_render_thread() {
     std::thread render_th([]() {
         rend R = {};
+        R.depth_test = false;
         R.wh = { 1024, 1024 };
         R.save_and_load_win_params = true;
 #ifdef _WIN32

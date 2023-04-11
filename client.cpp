@@ -195,6 +195,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 int main(void) {
 #endif
     rend R = {};
+    R.depth_test = false;
 #ifdef _WIN32
     R.imgui_font_size = 28;
     R.imgui_font_file_ttf = "C:\\data\\rend\\imgui\\misc\\fonts\\Cousine-Regular.ttf";
