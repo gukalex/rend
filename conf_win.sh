@@ -1,11 +1,17 @@
+# this is expected to be run under windows' git bash thing, IDK
+
 # download imgui
 git clone -b docking --depth 1 https://github.com/ocornut/imgui
 # download stb image
 curl https://raw.githubusercontent.com/nothings/stb/master/stb_image.h --output stb_image.h
 # download httplib
 curl https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h --output httplib.h
-# install glfw
-# sudo apt-get install libglfw3 libglfw3-dev
+# download GLFW
+curl -JL https://github.com/glfw/glfw/releases/download/3.3.8/glfw-3.3.8.bin.WIN64.zip --output glfw.zip
+mkdir -p lib
+# copy GLFW files into appropriate folders. IMPORTANT: use appropriate VS version (lib-vc20...)
+cp glfw-3.3.8.bin.WIN64/lib-vc2022/glfw3_mt.lib lib/glfw3_mt.lib
+cp glfw-3.3.8.bin.WIN64/include/GLFW GLFW
 
 # download VERY important files
 curl https://clipart-library.com/images_k/angry-pepe-transparent/angry-pepe-transparent-11.png --output pepe.png
