@@ -47,14 +47,11 @@ int main(void) {
     R.qb.max_quads = 100000;
     R.save_and_load_win_params = true;
     #ifdef _WIN32
-        // todo: if dpi is high
-        R.imgui_font_size = 28;
-        R.imgui_font_file_ttf = "C:\\data\\rend\\imgui\\misc\\fonts\\Cousine-Regular.ttf";
+        R.imgui_font_size = 28; // todo: if dpi is high
     #else
-        // todo: if dpi is high
-        R.imgui_font_size = 16;
-        R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
+        R.imgui_font_size = 16; // todo: if dpi is high
     #endif
+    R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
     R.init();
     
     int curr_demo = 3;

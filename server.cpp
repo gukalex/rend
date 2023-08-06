@@ -374,12 +374,11 @@ void start_render_thread() {
         R.wh = { 1024, 1024 };
         R.save_and_load_win_params = true;
 #ifdef _WIN32
-        R.imgui_font_size = 28;
-        R.imgui_font_file_ttf = "C:\\data\\rend\\imgui\\misc\\fonts\\Cousine-Regular.ttf";
+        R.imgui_font_size = 28; // todo: if dpi is high
 #else
-        R.imgui_font_size = 16;
-        R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
+        R.imgui_font_size = 16; // todo: if dpi is high
 #endif
+        R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
         R.init();
         draw_data dd = init_rts_dd(R);
 
