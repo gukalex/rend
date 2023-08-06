@@ -8,10 +8,11 @@ curl https://raw.githubusercontent.com/nothings/stb/master/stb_image.h --output 
 curl https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h --output httplib.h
 # download GLFW
 curl -JL https://github.com/glfw/glfw/releases/download/3.3.8/glfw-3.3.8.bin.WIN64.zip --output glfw.zip
+unzip glfw.zip
 mkdir -p lib
 # copy GLFW files into appropriate folders. IMPORTANT: use appropriate VS version (lib-vc20...)
 cp glfw-3.3.8.bin.WIN64/lib-vc2022/glfw3_mt.lib lib/glfw3_mt.lib
-cp glfw-3.3.8.bin.WIN64/include/GLFW GLFW
+cp -r glfw-3.3.8.bin.WIN64/include/GLFW GLFW
 
 # download VERY important files
 curl https://clipart-library.com/images_k/angry-pepe-transparent/angry-pepe-transparent-11.png --output pepe.png
