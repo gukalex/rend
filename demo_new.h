@@ -15,7 +15,7 @@ void init(rend& R) {
         dd.tex[0] = R.texture("amogus.png");
         for (int i = 0; i < 1000; i++) {
             amoguses[i].pos = {RN(), RN()};
-            amoguses[i].size = {RN() * 0.05, RN()* 0.05};
+            amoguses[i].size = {RN() * 0.05f, RN()* 0.05f};
         }
     }
     tstart = tnow();

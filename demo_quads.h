@@ -202,10 +202,10 @@ void init(rend& R) {
             q[i].hsize = hsize;
             q[i].center = { RN() * x_ar, RNC(hsize) };
             q[i].dir = { RNC(-1.f,1.f) * 0.05f, RNC(-1.f, 1.f) * 0.07f};
-            v4 base_attr[4] = {{1, 1, 0.3, 0},
-                                {1, 0, 0.3, 0},
-                                {0, 0, 0.3, 0},
-                                {0, 1, 0.3, 0} };
+            v4 base_attr[4] = {{1, 1, 0.3f, 0},
+                                {1, 0, 0.3f, 0},
+                                {0, 0, 0.3f, 0},
+                                {0, 1, 0.3f, 0} };
             memcpy((u8*)attr + curr_quad_count * sizeof(v4) * 4, base_attr, sizeof(v4) * 4);
             curr_quad_count++;
         }
@@ -217,7 +217,7 @@ void init(rend& R) {
 void update(rend& R) {
     static bool mon = false;
     static float brush_size = 1.0;
-    static float damp = 0.999;
+    static float damp = 0.999f;
     static bool damp_enabled = false;
     static bool velocity_mode = false;
     if (R.key_pressed('F', KT::IGNORE_IMGUI))
@@ -255,7 +255,7 @@ void update(rend& R) {
     ImGui::Checkbox("mouse always on [F]", &mon);
     ImGui::Checkbox("speed damp enabled", &damp_enabled);
     ImGui::Checkbox("velocity mode enabled", &velocity_mode);
-    ImGui::SliderFloat("dampening", &damp, 0.995, 1, "%.6f");
+    ImGui::SliderFloat("dampening", &damp, 0.995f, 1, "%.6f");
     ImGui::SliderFloat("brush size", &brush_size, -5, 5);
     R.clear({ 0.3f, 0.2f, 0.5f, 0.f });
     i64 update_start = tnow();
@@ -266,7 +266,7 @@ void update(rend& R) {
         v2 mouse_norm = R.mouse_norm();
         bool mouse_on = mon || R.key_pressed(KT::MBL) || R.key_pressed(KT::MBR);
         v4 mp = {mouse_norm.x * x_ar, mouse_norm.y, mouse_on ? 1.f : 0.f, R.key_pressed(KT::MBR) ? -brush_size : brush_size };
-        v4 test = {damp, velocity_mode, damp_enabled};
+        v4 test = {damp, (f32)velocity_mode, (f32)damp_enabled};
         static u32 curframe = 0;
         curframe++;
         R.dispatch({ compute, (u32)group_size, 1, 1, {q_buf, pos_buf, attr_buf, aux_buf}, {
