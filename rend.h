@@ -57,6 +57,22 @@ struct vertex_buffer {
 void init_vertex_buffer(vertex_buffer* vb);
 void init_quad_indicies(u32 index_buf, u32 quads);
 void cleanup_vertex_buffer(vertex_buffer* vb);
+
+enum blending { // expose blend states directly instead??
+    BLEND_NONE,
+    BLEND_ALPHABLEND,
+    //BLEND_PREMULTIPLIED
+};
+enum depth_state { //
+    DEPTH_NONE,
+    DEPTH_LESS,
+};
+struct pipeline_state {
+    blending blend = BLEND_ALPHABLEND;
+    depth_state depth = DEPTH_NONE;
+    // todo: ms stuff
+};
+
 struct draw_data {
     indexed_buffer ib;
     u32 prog; // todo: index and not direct opengl handle?
@@ -64,6 +80,7 @@ struct draw_data {
     m4 m = identity(), v = identity(), p = identity(); // todo: make a part of uni?
     uniform uni[DATA_MAX_ELEM] = {};
     u32 ssbo[DATA_MAX_ELEM] = {};
+    pipeline_state state = {};
 };
 
 struct dispatch_data {
@@ -120,7 +137,6 @@ struct rend {
     bool vsync = true;  // pre-init parameter, todo: make init parameter instead
     bool ms = true;     // multisample
     bool fs = false; // fullscreen
-    bool depth_test = true; // todo: put into draw state
     int debug = 1; // 1 - debug messages, 2 - GL_DEBUG_OUTPUT_SYNCHRONOUS; todo: enum debug_level
     bool save_and_load_win_params = true;
     const char* window_name = "rend";
@@ -180,7 +196,7 @@ struct rend {
     iv2 mouse();
     v2 mouse_norm();
 
-    void clear(v4 c); // todo: push api
+    void clear(v4 c, bool clear_depth = false); // todo: push api
     //void submit(draw_data data); // todo: push api
     void dispatch(dispatch_data data); // compute // todo: push api
     void ssbo_barrier(); // todo: type

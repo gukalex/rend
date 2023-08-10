@@ -52,7 +52,9 @@ void init(rend& R) {
         out vec4 FragColor;
         uniform sampler2D rend_t0;
         void main() {
-            FragColor.rgba = vAttr;//texture(rend_t0, uv).rgba;
+            FragColor.rgba = vAttr;
+            //vec2 uv = vAttr.xy;
+            //FragColor.rgba = texture(rend_t0, uv).rgba;
             //if (FragColor.a < 0.1) discard; // alpha test
         })");
         u32 tex = R.texture("pepe.png");
@@ -81,6 +83,8 @@ void init(rend& R) {
             dd[i].prog = prog; dd[i].tex[0] = tex; 
             dd[i].ib = static_ib[i];
             dd[i].uni[0] = { "mvp", UNIFORM_MAT4, &mvp[i] };
+            dd[i].state.blend = BLEND_NONE;
+            dd[i].state.depth = DEPTH_LESS;
         }
     }
 }
@@ -156,7 +160,7 @@ void update(rend& R) { using namespace ImGui;
 
     for (int i = 0; i < ARSIZE(dd); i++) mvp[i] = p * v * m[i];
 
-    R.clear(C::BLACK);
+    R.clear(C::BLACK, true /*depth*/);
     R.submit(dd, ARSIZE(dd));
 }
 }

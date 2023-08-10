@@ -113,8 +113,6 @@ void rend::init() {
         glfwSwapInterval(1);
     else
         glfwSwapInterval(0);
-    if (depth_test)
-        glEnable(GL_DEPTH_TEST);
     glViewport(0, 0, wh.x, wh.y);
     glfwSetWindowUserPointer(window, (void*)this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -125,8 +123,6 @@ void rend::init() {
             glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(gl_errors, 0);
     }
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -331,6 +327,30 @@ static void uniforms(u32 prog, uniform *uni, int size) {
 
 void rend::submit(draw_data* dd, int dd_count) {
     for (int i = 0; i < dd_count; i++) {
+        // hack!!!!., todo: remove, it may or may not affect the perf
+        static blending prev_blend_state = (blending)-1; defer{ prev_blend_state = dd[i].state.blend; };
+        static depth_state prev_depth_state = (depth_state)-1; defer{ prev_depth_state = dd[i].state.depth; };
+        if (prev_blend_state != dd[i].state.blend) {
+            switch(dd[i].state.blend) { // todo: if state changed
+                case BLEND_NONE:
+                    glDisable(GL_BLEND);
+                break;
+                case BLEND_ALPHABLEND:
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                break;
+            }
+        }
+        if (prev_depth_state != dd[i].state.blend)
+        switch(dd[i].state.depth) { // todo: if state changed
+            case DEPTH_NONE:
+                glDisable(GL_DEPTH_TEST);
+            break;
+            case DEPTH_LESS:
+                glEnable(GL_DEPTH_TEST);
+                glDepthFunc(GL_LESS); // LEQUAL??
+            break;
+        }
         glUseProgram(dd[i].prog);
         for (int t = 0; t < DATA_MAX_ELEM; t++) {
             if (dd[i].tex[t]) {
@@ -513,9 +533,9 @@ v2 rend::mouse_norm() {
     return clamp(norm, { 0,0 }, {1, 1});
 }
 
-void rend::clear(v4 c) {
-    glClear(GL_COLOR_BUFFER_BIT | (depth_test ? GL_DEPTH_BUFFER_BIT : 0));
-    glClearColor(c.x, c.y, c.z, c.w); // why it's under glClear?
+void rend::clear(v4 c, bool clear_depth) {
+    glClearColor(c.x, c.y, c.z, c.w);
+    glClear(GL_COLOR_BUFFER_BIT | (clear_depth ? GL_DEPTH_BUFFER_BIT : 0));
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {

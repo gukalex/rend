@@ -20,6 +20,7 @@ g++ main.cpp rend.cpp std.cpp -I. glad.o stb_image.o -Iimgui/backends -Iimgui im
 #include "demo_qube.h"
 #include "8086.h"
 #include "demo_coroutines.h"
+#include "demo_new.h"
 
 
 struct demo { void (*init)(rend& R); void (*update)(rend& R); const char* name; };
@@ -27,7 +28,8 @@ demo demos[] = { {cpu_sim::init, cpu_sim::update, "0: 8086"},
                  {demo_quads::init, demo_quads::update, "1: quads"},
                  {demo_compute::init, demo_compute::update, "2: compute"},
                  {demo_qube::init, demo_qube::update, "3: qube"},
-                 {demo_coro::init, demo_coro::update, "4: coroutines"} };
+                 {demo_coro::init, demo_coro::update, "4: coroutines"},
+                 {demo_new::init, demo_new::update, "5: fun"} };
 int demos_count = sizeof(demos) / sizeof(demo);
 
 rend R;
@@ -39,7 +41,6 @@ int main(void) {
 #endif
     set_print_options({ "debug.txt" });
     defer{ set_print_options({0}); };
-    R.depth_test = true; // that doesn't work well with textured quads with alpha and requires discard in the shader, disable for easier setup (or make it a part of draw_data)
     R.ms = false;
     R.debug = 1;
     R.wh = { 1024, 1024 };
@@ -54,7 +55,7 @@ int main(void) {
     R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
     R.init();
     
-    int curr_demo = 3;
+    int curr_demo = 1;
     demos[curr_demo].init(R);
 
     i64 timer_start = tnow();

@@ -381,7 +381,6 @@ void start_render_thread() {
         R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
         R.init();
         draw_data dd = init_rts_dd(R);
-
         i64 timer_start = tnow();
         current_state state_to_render = {};
         i64 last_server_frame = -1;
@@ -400,6 +399,7 @@ void start_render_thread() {
 
             R.clear({ 0.1f, 0.3f, 0.1f, 0.f });
             draw_rts(R, state_to_render, tz_ef);
+            dd.p = ortho(0, ARENA_SIZE * (R.wh.x / (f32)R.wh.y), 0, ARENA_SIZE);
             R.submit_quads(&dd); // todo: inside draw_state?
 
             ImGui::End();
