@@ -139,6 +139,8 @@ struct rend {
     bool fs = false; // fullscreen
     int debug = 1; // 1 - debug messages, 2 - GL_DEBUG_OUTPUT_SYNCHRONOUS; todo: enum debug_level
     bool save_and_load_win_params = true;
+    const char* imgui_custom_path = 0;
+    const char* rend_ini_path = "rend.ini";
     const char* window_name = "rend";
     u32 imgui_font_size = 16;
     const char* imgui_font_file_ttf = nullptr;
