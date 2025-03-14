@@ -23,7 +23,6 @@
 
 #include "stb_image.h"
 
-#define REND_INI_FILENAME "rend.ini"
 #define REND_INI_VER 2
 struct rend_ini {
     int ver = REND_INI_VER; int x = 0; int y = 0;
@@ -92,7 +91,7 @@ void rend::init() {
         glfwWindowHint(GLFW_SAMPLES, 4);
     window = glfwCreateWindow(wh.x, wh.y, window_name, (fs ? glfwGetPrimaryMonitor() : NULL), NULL);
     if (save_and_load_win_params) {
-        buffer rend_file = read_file(REND_INI_FILENAME);
+        buffer rend_file = read_file(rend_ini_path);
         if (rend_file.data) {
             rend_ini* data = (rend_ini*)rend_file.data;
             if (data->ver == REND_INI_VER && data->width > 0 && data->height > 0) {
@@ -127,6 +126,8 @@ void rend::init() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    if (imgui_custom_path)
+        io.IniFilename = imgui_custom_path;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
@@ -341,7 +342,7 @@ void rend::submit(draw_data* dd, int dd_count) {
                 break;
             }
         }
-        if (prev_depth_state != dd[i].state.blend)
+        if (prev_depth_state != dd[i].state.depth)
         switch(dd[i].state.depth) { // todo: if state changed
             case DEPTH_NONE:
                 glDisable(GL_DEPTH_TEST);
@@ -390,7 +391,7 @@ void rend::cleanup() {
         rend_ini data = {};
         glfwGetWindowPos(window, &data.x, &data.y);
         glfwGetWindowSize(window, &data.width, &data.height);
-        write_file(REND_INI_FILENAME, {(u8*)&data, sizeof(data)});
+        write_file(rend_ini_path, {(u8*)&data, sizeof(data)});
     }
 
     glfwTerminate();
