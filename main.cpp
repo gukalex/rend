@@ -21,6 +21,7 @@ g++ main.cpp rend.cpp std.cpp -I. glad.o stb_image.o -Iimgui/backends -Iimgui im
 #include "8086.h"
 #include "demo_coroutines.h"
 #include "demo_new.h"
+#include "demo_board.h"
 
 
 struct demo { void (*init)(rend& R); void (*update)(rend& R); const char* name; };
@@ -29,7 +30,8 @@ demo demos[] = { {cpu_sim::init, cpu_sim::update, "0: 8086"},
                  {demo_compute::init, demo_compute::update, "2: compute"},
                  {demo_qube::init, demo_qube::update, "3: qube"},
                  {demo_coro::init, demo_coro::update, "4: coroutines"},
-                 {demo_new::init, demo_new::update, "5: fun"} };
+                 {demo_new::init, demo_new::update, "5: fun"},
+                 {demo_board::init, demo_board::update, "6: board"} };
 int demos_count = sizeof(demos) / sizeof(demo);
 
 rend R;
@@ -39,23 +41,34 @@ int WinMain(void* hInstance, void* hPrevInstance, char* lpCmdLine, int nShowCmd)
 #else
 int main(void) {
 #endif
+    const char* homedir = std::getenv("HOME");
+    int homedir_size = strlen(homedir);
+    char rend_ini_path[128] = {};
+    char imgui_ini_path[128] = {};
+    memcpy(rend_ini_path, homedir, homedir_size);
+    memcpy(rend_ini_path + homedir_size, "/demos_rend.ini", strlen("/demos_rend.ini"));
+    memcpy(imgui_ini_path, homedir, strlen(homedir));
+    memcpy(imgui_ini_path + homedir_size, "/demos_imgui.ini", strlen("/demos_imgui.ini"));
+
     set_print_options({ "debug.txt" });
     defer{ set_print_options({0}); };
     R.ms = false;
     R.debug = 1;
-    R.wh = { 1024, 1024 };
+    R.wh = { (u32)((1920 * 2) / 2.5f), (u32)(1080 / 2.5f) }; //16 * 2 / 9
     R.vsync = false;
     R.qb.max_quads = 100000;
     R.save_and_load_win_params = true;
+    R.imgui_custom_path = imgui_ini_path; //"/workbig/demos_imgui.ini";
+    R.rend_ini_path = rend_ini_path; // "/workbig/demos_rend.ini";
     #ifdef _WIN32
         R.imgui_font_size = 28; // todo: if dpi is high
     #else
         R.imgui_font_size = 16; // todo: if dpi is high
     #endif
-    R.imgui_font_file_ttf = "imgui/misc/fonts/Cousine-Regular.ttf";
+    R.imgui_font_file_ttf = "Cousine-Regular.ttf";
     R.init();
     
-    int curr_demo = 1;
+    int curr_demo = 6;
     demos[curr_demo].init(R);
 
     i64 timer_start = tnow();
