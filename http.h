@@ -17,7 +17,10 @@ enum req_type { REQUEST_GET, REQUEST_POST };
 struct server_callback {
     req_type type;
     const char* endpoint;
+    // todo: remove callback1
     void(*callback)(http_response* resp, const char* post_data, u64 post_data_size);
+    void(*callback2)(http_response* resp, const char* post_data, u64 post_data_size, const char* host, int port);
+    int callback_type; // 0 for callback, 1 for callback2
 };
 void start_server(const char* host, int port, int count, server_callback* callbacks);
 
